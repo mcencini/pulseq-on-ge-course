@@ -10,10 +10,10 @@ The notebooks start from the 2D gradient echo that ships with pypulseq
 way to the gre2d of the pge2 examples
 ([`write2DGRE.m`](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/2DGRE/write2DGRE.m)).
 
-| notebook | | topic |
-|---|---|---|
-| [01_rasters](exercises/01_rasters.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GEHC-External/pulseq-ge-course/blob/main/exercises/01_rasters.ipynb) | the pypulseq GRE through `pulseg.fromSeq`, `pge2.check` and `pge2.validate`; GE raster times |
-| [02_events_in_loop](exercises/02_events_in_loop.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GEHC-External/pulseq-ge-course/blob/main/exercises/02_events_in_loop.ipynb) | a phase-encoding gradient created in every TR: what the scanner plays, and the `scale_grad` fix |
+| notebook | topic |
+|---|---|
+| [01_rasters](exercises/01_rasters.ipynb) | the pypulseq GRE through `pulseg.fromSeq`, `pge2.check` and `pge2.validate`; GE raster times |
+| [02_events_in_loop](exercises/02_events_in_loop.ipynb) | a phase-encoding gradient created in every TR: what the scanner plays, and the `scale_grad` fix |
 
 The rules themselves are in the
 [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).
@@ -27,14 +27,16 @@ running in GNU Octave and called from Python through oct2py. The `pgecourse`
 helper package downloads the Pulseq, pulseg and pge2 MATLAB toolboxes at
 pinned commits on first use.
 
-**Google Colab** (nothing to install): open a notebook in Colab and run its
-first code cell, the one-line setup
+**Google Colab** (nothing to install on your computer):
 
-```
-!pip -q install git+https://github.com/GEHC-External/pulseq-ge-course@main && python -m pgecourse.colab
-```
-
-which installs this package and GNU Octave (about 2 minutes).
+1. Get the repository folder: clone it, or use Code → Download ZIP on GitHub
+   and unzip it.
+2. Upload the whole folder to your Google Drive (My Drive, or a folder up to
+   three levels below it).
+3. In Drive, open a notebook from `exercises/` with Open with → Google
+   Colaboratory.
+4. Run the first code cell. It connects your Drive, finds the course folder,
+   and installs the course package and GNU Octave (about 2 minutes).
 
 **Your own computer**: install [GNU Octave](https://octave.org/download) and
 git, then, in this repository,
@@ -57,12 +59,9 @@ python exercises/build.py
 pytest -q
 ```
 
-When the course moves, change `COURSE_REPO` and `COURSE_BRANCH` at the top of
-`exercises/build.py` (Colab badges and install line) and the links in this
-table, then rebuild.
-
 `exercises/src/_setup.py` holds the setup cells shared by every notebook;
-the Colab install cell is tagged `colab-only`, and the tests skip it.
+the Colab cell, which installs from the course folder in Google Drive, is
+tagged `colab-only`, and the tests skip it.
 Solution cells carry Colab's `cellView: form`, so Colab shows them collapsed.
 "Your turn" cells are tagged `raises-exception`, so a notebook still runs top
 to bottom before the participant fills them in.

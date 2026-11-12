@@ -1,7 +1,7 @@
 """Install GNU Octave on a Colab (or other Debian/Ubuntu) runtime.
 
-Usage, in the first notebook cell:
-    !pip -q install git+https://github.com/GEHC-External/pulseq-ge-course && python -m pgecourse.colab
+Run by the Colab setup cell of the notebooks, after it installs this package
+from the course folder in Google Drive.
 """
 
 import shutil
