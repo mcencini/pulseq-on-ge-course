@@ -10,10 +10,10 @@ The notebooks start from the 2D gradient echo that ships with pypulseq
 way to the gre2d of the pge2 examples
 ([`write2DGRE.m`](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/2DGRE/write2DGRE.m)).
 
-| notebook | topic |
-|---|---|
-| [01_rasters](exercises/01_rasters.ipynb) | the pypulseq GRE through `pulseg.fromSeq`, `pge2.check` and `pge2.validate`; GE raster times |
-| [02_events_in_loop](exercises/02_events_in_loop.ipynb) | a phase-encoding gradient created in every TR: what the scanner plays, and the `scale_grad` fix |
+| notebook | | topic |
+|---|---|---|
+| [01_rasters](exercises/01_rasters.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mcencini/pulseq-on-ge-course/blob/claude/gre2d-from-stock/exercises/01_rasters.ipynb) | the pypulseq GRE through `pulseg.fromSeq`, `pge2.check` and `pge2.validate`; GE raster times |
+| [02_events_in_loop](exercises/02_events_in_loop.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mcencini/pulseq-on-ge-course/blob/claude/gre2d-from-stock/exercises/02_events_in_loop.ipynb) | a phase-encoding gradient created in every TR: what the scanner plays, and the `scale_grad` fix |
 
 The rules themselves are in the
 [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).
@@ -31,7 +31,7 @@ pinned commits on first use.
 first code cell, the one-line setup
 
 ```
-!pip -q install git+https://github.com/GEHC-External/pulseq-ge-course && python -m pgecourse.colab
+!pip -q install git+https://github.com/mcencini/pulseq-on-ge-course@claude/gre2d-from-stock && python -m pgecourse.colab
 ```
 
 which installs this package and GNU Octave (about 2 minutes).
@@ -56,6 +56,10 @@ pip install -e .[dev]
 python exercises/build.py
 pytest -q
 ```
+
+When the course moves, change `COURSE_REPO` and `COURSE_BRANCH` at the top of
+`exercises/build.py` (Colab badges and install line) and the links in this
+table, then rebuild.
 
 `exercises/src/_setup.py` holds the setup cells shared by every notebook;
 the Colab install cell is tagged `colab-only`, and the tests skip it.

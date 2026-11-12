@@ -4,7 +4,7 @@
 # instead and skip it.
 
 # %% tags=["colab-only"]
-# !pip -q install git+https://github.com/GEHC-External/pulseq-ge-course && python -m pgecourse.colab
+# !pip -q install {PACKAGE_URL} && python -m pgecourse.colab
 
 # %%
 import numpy as np
