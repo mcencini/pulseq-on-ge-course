@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pgecourse"
+version = "0.0.1"
+description = "Helpers for the Pulseq on GE (pge2) course notebooks"
+requires-python = ">=3.10"
+dependencies = [
+    "pypulseq==1.5.0.post1",
+    "oct2py>=5.7",
+    "numpy",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "nbclient", "ipykernel", "jupytext"]
+
+[tool.setuptools.packages.find]
+include = ["pgecourse*"]
