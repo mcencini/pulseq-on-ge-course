@@ -1,209 +1,261 @@
 # %% [markdown]
-# # 02 · Risk #2: creating events inside the scan loop
+# # 02 · Events created inside the scan loop
 #
-# Many Pulseq scripts create the phase-encoding gradient inside the loop,
-# one `make_trapezoid` per line. On GE that is risky. pulseg builds each
-# segment's definition from its **first instance**, and pge2 plays every
-# later instance by scaling the waveforms of that definition. If a later
-# instance has a gradient with a different *shape* (other ramp or flat-top
-# times), the scanner still plays the first shape, only rescaled.
+# At the end of notebook 01, the pypulseq GRE passes `pulseg.fromSeq`,
+# `pge2.check` and `pge2.validate`. This notebook asks whether it plays the
+# phase encoding we asked for.
 
 # %%
 #INCLUDE _setup.py
 
-# %%
-from pgecourse.sequences import GE_SYSTEM as system
-
 # %% [markdown]
-# ## The naive gre2d
-#
-# Events as in notebook 00, except the phase-encoding gradient. Here each line
-# makes its own minimum-time trapezoid with the area it needs.
+# The GRE and the system limits from the end of notebook 01. Note how the
+# phase-encoding gradient is made: a new `make_trapezoid` in every TR, with the
+# area of that line and a fixed duration.
 
 # %%
-fov = 240e-3
-n = 128
-slice_thickness = 5e-3
-dwell = 20e-6
-tr_delay = 5e-3
-n_dummy = 20
-pislquant = 10
-TRID = {"dummy": 1, "receive_gain": 2, "acquire": 3}
+system = pp.Opts(
+    max_grad=50 / np.sqrt(3),
+    grad_unit="mT/m",
+    max_slew=120 / np.sqrt(3),
+    slew_unit="T/m/s",
+    rf_ringdown_time=20e-6,
+    rf_dead_time=100e-6,
+    adc_dead_time=10e-6,
+    grad_raster_time=4e-6,
+    block_duration_raster=4e-6,
+    rf_raster_time=2e-6,
+    adc_raster_time=2e-6,
+)
+
+fov = 256e-3
+n_x = n_y = 64
+slice_thickness = 3e-3
+tr, te = 12e-3, 5e-3
 
 rf, gz, _ = pp.make_sinc_pulse(
-    flip_angle=np.deg2rad(6),
+    flip_angle=np.deg2rad(10),
     duration=3e-3,
-    delay=system.rf_dead_time,
     slice_thickness=slice_thickness,
     apodization=0.42,
     time_bw_product=4,
     system=system,
     return_gz=True,
+    delay=system.rf_dead_time,
     use="excitation",
 )
-gz_reph = pp.make_trapezoid("z", area=-gz.area / 2, duration=1e-3, system=system)
 delta_k = 1 / fov
-gx = pp.make_trapezoid("x", flat_area=n * delta_k, flat_time=n * dwell, system=system)
-adc = pp.make_adc(n, duration=gx.flat_time, delay=gx.rise_time, system=system)
-gx_pre = pp.make_trapezoid("x", area=-gx.area / 2, duration=1e-3, system=system)
-gx_spoil = pp.make_trapezoid("x", area=2 * n * delta_k, system=system)
-gz_spoil = pp.make_trapezoid("z", area=4 / slice_thickness, system=system)
-pe_areas = (np.arange(n) - n / 2) * delta_k
+gx = pp.make_trapezoid(channel="x", flat_area=n_x * delta_k, flat_time=3.2e-3, system=system)
+adc = pp.make_adc(num_samples=n_x, duration=gx.flat_time, delay=gx.rise_time, system=system)
+gx_pre = pp.make_trapezoid(channel="x", area=-gx.area / 2, duration=1e-3, system=system)
+gz_reph = pp.make_trapezoid(channel="z", area=-gz.area / 2, duration=1e-3, system=system)
+phase_areas = (np.arange(n_y) - n_y / 2) * delta_k
+gx_spoil = pp.make_trapezoid(channel="x", area=2 * n_x * delta_k, system=system)
+gz_spoil = pp.make_trapezoid(channel="z", area=4 / slice_thickness, system=system)
+
+te_delay = (
+    te
+    - (pp.calc_duration(gz, rf) - pp.calc_rf_center(rf)[0] - rf.delay)
+    - pp.calc_duration(gx_pre)
+    - pp.calc_duration(gx) / 2
+    - pp.eps
+)
+te_delay = np.ceil(te_delay / system.grad_raster_time) * system.grad_raster_time
+tr_delay = tr - pp.calc_duration(gz, rf) - pp.calc_duration(gx_pre) - pp.calc_duration(gx) - te_delay
+tr_delay = np.ceil(tr_delay / system.grad_raster_time) * system.grad_raster_time
 
 
-def naive_gre2d():
+def write_gre():
     seq = pp.Sequence(system)
-    rf_phase = rf_increment = 0.0
-    for iy in range(-n_dummy - pislquant, n):
-        segment = "dummy" if iy < -pislquant else "receive_gain" if iy < 0 else "acquire"
-        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
-        rf_increment = (rf_increment + 117) % 360
-        rf_phase = (rf_phase + rf_increment) % 360
+    rf_phase = rf_inc = 0
+    for i_phase in range(n_y):
+        rf.phase_offset = adc.phase_offset = rf_phase / 180 * np.pi
+        rf_inc = divmod(rf_inc + 117, 360.0)[1]
+        rf_phase = divmod(rf_phase + rf_inc, 360.0)[1]
 
-        area = pe_areas[iy] if segment == "acquire" else 0.0
-        gy_pre = pp.make_trapezoid("y", area=area, system=system)  # new event every TR
-        gy_rew = pp.make_trapezoid("y", area=-area, system=system)
-
-        seq.add_block(rf, gz, pp.make_label(type="SET", label="TRID", value=TRID[segment]))
+        seq.add_block(rf, gz, pp.make_label(type="SET", label="TRID", value=1))
+        gy_pre = pp.make_trapezoid(
+            channel="y", area=phase_areas[i_phase], duration=pp.calc_duration(gx_pre), system=system
+        )
         seq.add_block(gx_pre, gy_pre, gz_reph)
-        if segment == "dummy":
-            seq.add_block(gx)
-        else:
-            seq.add_block(gx, adc)
-        seq.add_block(gx_spoil, gy_rew, gz_spoil)
-        seq.add_block(pp.make_delay(tr_delay))
+        seq.add_block(pp.make_delay(te_delay))
+        seq.add_block(gx, adc)
+        gy_pre.amplitude = -gy_pre.amplitude
+        seq.add_block(pp.make_delay(tr_delay), gx_spoil, gy_pre, gz_spoil)
     return seq
 
 
-seq = naive_gre2d()
-print("Pulseq timing check passed:", seq.check_timing()[0])
-
-# %% [markdown]
-# ## Run the chain
-#
-# Conversion and hardware checks both pass:
-
-# %%
-report = ge.from_seq(seq)
-print(report)
+seq = write_gre()
+print(ge.from_seq(seq))
 print(ge.check())
+print("pge2.validate:", ge.validate())
 
 # %% [markdown]
-# ...but validation does not:
-
-# %%
-ok = ge.validate()
-print("pge2.validate:", ok)
-print("\n".join(ge.last_messages[:5]))
-
-# %% [markdown]
-# ## What happened
+# ## What does the scanner play?
 #
-# Look at two phase-encoding lines. `make_trapezoid` picks the shortest
-# trapezoid for each area, so the ramp and flat-top times change from line
-# to line:
+# `ge.instance_waveforms(row)` returns the gradients of one segment instance
+# twice: as the `.seq` file has them, and as pge2 builds them for the
+# hardware. Each TR is 5 blocks, so phase-encoding line `i` starts at block
+# `5 * i + 1`. Here is the prephasing block of line 16:
 
 # %%
-for iy in (0, n // 4, n // 2 - 1):
-    g = pp.make_trapezoid("y", area=pe_areas[iy], system=system)
-    print(
-        f"line {iy:3d}: rise {g.rise_time * 1e6:5.0f} us, flat {g.flat_time * 1e6:5.0f} us, "
-        f"amplitude {g.amplitude / system.gamma * 1e3:6.2f} mT/m"
-    )
+import matplotlib.pyplot as plt
+
+w = ge.instance_waveforms(5 * 16 + 1)
+t0, t1 = w["block_edges"][1], w["block_edges"][2]
+fig, ax = plt.subplots(figsize=(7, 3))
+for key, style in (("seq", "-"), ("played", "--")):
+    t, g = w[key]["gy"]
+    keep = (t >= t0) & (t <= t1)
+    ax.plot((t[keep] - t0) * 1e3, g[keep], style, label=key)
+ax.set(xlabel="time in block (ms)", ylabel="gy (mT/m)", title="line 16, phase-encoding prephaser")
+ax.legend()
+plt.show()
 
 # %% [markdown]
-# The `acquire` segment was defined by its first instance, line 0. Every other
-# line is played with line 0's ramp and flat-top times, scaled to the new
-# peak amplitude, so its gradient area, and the k-space line it encodes,
-# is wrong. Nothing fails at download or during the scan; only the image is
-# wrong. That is why `pge2.validate` belongs in every workflow.
+# Same peak, different ramps. Over all lines, the difference in phase-encoding
+# area, in units of Δk = 1/FOV:
+
+# %%
+GAMMA = 42.576e3  # Hz/(mT/m s) -> 1/m
+
+
+def pe_area_error(seq_n_lines):
+    errors = []
+    for i in range(seq_n_lines):
+        w = ge.instance_waveforms(5 * i + 1)
+        t0, t1 = w["block_edges"][1], w["block_edges"][2]
+        areas = {}
+        for key in ("seq", "played"):
+            t, g = w[key]["gy"]
+            keep = (t >= t0 - 1e-9) & (t <= t1 + 1e-9)
+            areas[key] = np.trapezoid(g[keep], t[keep]) * GAMMA if keep.sum() > 1 else 0.0
+        errors.append((areas["played"] - areas["seq"]) / delta_k)
+    return np.array(errors)
+
+
+errors = pe_area_error(n_y)
+plt.figure(figsize=(7, 3))
+plt.plot(np.arange(n_y) - n_y / 2, errors, ".")
+plt.xlabel("ky line (units of Δk)")
+plt.ylabel("played − intended (Δk)")
+plt.title("phase-encoding error")
+plt.show()
+print(f"largest error: {np.max(np.abs(errors)):.2f} Δk")
+
+# %% [markdown]
+# Lines are encoded up to about one Δk away from where they should be, and no
+# check said so.
+#
+# ## Why
+#
+# 1. **pge2 replays shapes.** A segment's base blocks come from its *first*
+#    instance. Every later instance plays the same waveform shapes, scaled to
+#    its own amplitude. Here the first instance is line 0, the largest |ky|.
+# 2. **`make_trapezoid` changes the shape with the area**, even at a fixed
+#    duration: it uses the shortest ramp the slew rate allows for each
+#    amplitude, and lengthens the flat top to fill the duration.
+
+# %%
+for i in (0, 8, 16, 24, 31):
+    g = pp.make_trapezoid("y", area=phase_areas[i], duration=pp.calc_duration(gx_pre), system=system)
+    print(f"line {i:2d}: rise {g.rise_time * 1e6:4.0f} us, flat {g.flat_time * 1e6:4.0f} us")
+
+# %% [markdown]
+# 3. **`pge2.validate` compares sample by sample** with a tolerance of a few
+#    slew-rate steps, so a ramp that is a few tens of µs off passes. The
+#    accumulated area does not.
+#
+# The GE way, and the way pge2 expects: create the event once, with the largest
+# area it will need, and scale it in the loop. Then every instance has the
+# same shape by construction.
 
 # %% [markdown]
 # ## Your turn
 #
-# Rewrite the loop so that pge2 plays the intended gradients:
+# Rewrite `write_gre` so that:
 #
-# 1. Create **one** phase-encoding trapezoid before the loop, sized for the
-#    largest |ky| area.
-# 2. In the loop, scale it with `pp.scale_grad` (both prephaser and rewinder).
-# 3. Check that `ge.validate()` returns `True` and that the report shows
-#    fewer base blocks.
+# 1. one phase-encoding trapezoid is created **before** the loop, for the
+#    largest |ky| area;
+# 2. the loop uses `pp.scale_grad` for the prephaser and the rewinder.
+#
+# Then check that `pe_area_error` drops to the precision of the numerical
+# integration (about 10⁻³ Δk) for every line.
 
 # %% tags=["raises-exception"]
-def fixed_gre2d():
+def write_gre_ge():
     seq = pp.Sequence(system)
     # TODO: create the phase-encoding trapezoid here
-    rf_phase = rf_increment = 0.0
-    for iy in range(-n_dummy - pislquant, n):
-        segment = "dummy" if iy < -pislquant else "receive_gain" if iy < 0 else "acquire"
-        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
-        rf_increment = (rf_increment + 117) % 360
-        rf_phase = (rf_phase + rf_increment) % 360
+    rf_phase = rf_inc = 0
+    for i_phase in range(n_y):
+        rf.phase_offset = adc.phase_offset = rf_phase / 180 * np.pi
+        rf_inc = divmod(rf_inc + 117, 360.0)[1]
+        rf_phase = divmod(rf_phase + rf_inc, 360.0)[1]
 
-        # TODO: replace these two lines
-        gy_pre = ...
-        gy_rew = ...
-
-        seq.add_block(rf, gz, pp.make_label(type="SET", label="TRID", value=TRID[segment]))
+        seq.add_block(rf, gz, pp.make_label(type="SET", label="TRID", value=1))
+        gy_pre = ...  # TODO
+        gy_rew = ...  # TODO
         seq.add_block(gx_pre, gy_pre, gz_reph)
-        if segment == "dummy":
-            seq.add_block(gx)
-        else:
-            seq.add_block(gx, adc)
-        seq.add_block(gx_spoil, gy_rew, gz_spoil)
-        seq.add_block(pp.make_delay(tr_delay))
+        seq.add_block(pp.make_delay(te_delay))
+        seq.add_block(gx, adc)
+        seq.add_block(pp.make_delay(tr_delay), gx_spoil, gy_rew, gz_spoil)
     return seq
 
 
-print(ge.from_seq(fixed_gre2d()))
+print(ge.from_seq(write_gre_ge()))
+ge.check()
 print("pge2.validate:", ge.validate())
+print(f"largest error: {np.max(np.abs(pe_area_error(n_y))):.2e} Δk")
 
 # %% cellView="form"
 # @title Solution (double-click to show the code)
-def fixed_gre2d():
+def write_gre_ge():
     seq = pp.Sequence(system)
-    gy_base = pp.make_trapezoid("y", area=np.max(np.abs(pe_areas)), duration=1e-3, system=system)
-    pe_scales = pe_areas / gy_base.area
-    rf_phase = rf_increment = 0.0
-    for iy in range(-n_dummy - pislquant, n):
-        segment = "dummy" if iy < -pislquant else "receive_gain" if iy < 0 else "acquire"
-        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
-        rf_increment = (rf_increment + 117) % 360
-        rf_phase = (rf_phase + rf_increment) % 360
+    gy_base = pp.make_trapezoid(
+        channel="y", area=np.max(np.abs(phase_areas)), duration=pp.calc_duration(gx_pre), system=system
+    )
+    pe_scales = phase_areas / gy_base.area
+    rf_phase = rf_inc = 0
+    for i_phase in range(n_y):
+        rf.phase_offset = adc.phase_offset = rf_phase / 180 * np.pi
+        rf_inc = divmod(rf_inc + 117, 360.0)[1]
+        rf_phase = divmod(rf_phase + rf_inc, 360.0)[1]
 
-        pe = pe_scales[iy] if segment == "acquire" else 0.0
-        gy_pre = pp.scale_grad(gy_base, pe)
-        gy_rew = pp.scale_grad(gy_base, -pe)
-
-        seq.add_block(rf, gz, pp.make_label(type="SET", label="TRID", value=TRID[segment]))
+        seq.add_block(rf, gz, pp.make_label(type="SET", label="TRID", value=1))
+        gy_pre = pp.scale_grad(gy_base, pe_scales[i_phase])
+        gy_rew = pp.scale_grad(gy_base, -pe_scales[i_phase])
         seq.add_block(gx_pre, gy_pre, gz_reph)
-        if segment == "dummy":
-            seq.add_block(gx)
-        else:
-            seq.add_block(gx, adc)
-        seq.add_block(gx_spoil, gy_rew, gz_spoil)
-        seq.add_block(pp.make_delay(tr_delay))
+        seq.add_block(pp.make_delay(te_delay))
+        seq.add_block(gx, adc)
+        seq.add_block(pp.make_delay(tr_delay), gx_spoil, gy_rew, gz_spoil)
     return seq
 
 
-print(ge.from_seq(fixed_gre2d()))
+print(ge.from_seq(write_gre_ge()))
+ge.check()
 print("pge2.validate:", ge.validate())
+print(f"largest error: {np.max(np.abs(pe_area_error(n_y))):.2e} Δk")
 
 # %% [markdown]
-# ## Going further: "it works" is not the same as "it is right"
+# ## Going further: when validate does catch it
 #
-# Make the in-loop trapezoid with a fixed duration,
-# `pp.make_trapezoid("y", area=area, duration=1e-3, system=system)`, and run
-# the chain again. With pypulseq 1.5 it validates, because a fixed duration
-# happens to give the same ramp times for every area. It still costs two extra
-# base blocks, and it depends on how a library version rounds ramp times. One
-# event, scaled in the loop, does not.
+# Drop `duration=` from the in-loop `make_trapezoid`, so that every line gets
+# the shortest trapezoid for its area. The shapes now differ by hundreds of
+# µs, and `pge2.validate` reports the mismatch. The fixed-duration version is
+# the more dangerous one, because it looks clean.
 
 # %% [markdown]
 # ## Take-home
 #
 # - Create every RF, gradient and ADC event once, before the loop.
 # - In the loop, change only amplitudes (`pp.scale_grad`), RF/ADC phase and
-#   frequency, rotations, and the length of pure delay blocks.
-# - Run `pge2.validate`: a sequence can pass every other check and still play
-#   the wrong gradients.
+#   frequency, and the length of pure delay blocks.
+# - Passing `pge2.validate` does not prove the phase encoding is right; a
+#   shape created per line can hide a k-space error below its tolerance.
+#
+# ## Still to come on the way to the pge2 gre2d
+#
+# The sequence now follows the two rules covered so far. The gre2d of the pge2
+# examples also has dummy TRs and receive-gain TRs under their own TRIDs, a
+# second echo with a different ADC, pure delays whose length varies between
+# instances, and noise scans.

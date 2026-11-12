@@ -16,6 +16,7 @@ for src in sorted(SRC.glob("[0-9]*.py")):
     nb = jupytext.reads(text, fmt="py:percent")
     nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
     nb.metadata["colab"] = {"provenance": []}
+    nb.metadata.pop("jupytext", None)
     for i, cell in enumerate(nb.cells):
         cell.id = f"cell-{i:02d}"
     jupytext.write(nb, HERE / f"{src.stem}.ipynb", fmt="ipynb")

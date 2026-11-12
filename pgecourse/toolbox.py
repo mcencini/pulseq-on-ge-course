@@ -17,6 +17,8 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
+
 #: Toolbox sources, pinned to the commits the course material was tested with.
 TOOLBOXES = {
     "pulseq": ("https://github.com/pulseq/pulseq", "11e459d9b6b426aa6ea57a01153fb9afea332f6f"),
@@ -342,6 +344,44 @@ class GE:
             "ok = pge2.validate(psq, sys_ge, seq_ref, [], 'row', [], 'plot', false);"
         )
         return bool(self._get(f"ok"))
+
+    def instance_waveforms(self, row: int) -> dict:
+        """Gradients of one segment instance, as pge2 plays them and as the .seq file has them.
+
+        Call ``check`` first.
+
+        Parameters
+        ----------
+        row : int
+            Block number (1-based, as in the ``.seq`` file) where the segment
+            instance starts.
+
+        Returns
+        -------
+        dict
+            ``"played"`` and ``"seq"``, each mapping ``"gx"``, ``"gy"``, ``"gz"``
+            to ``(t, g)``: time in s from the start of the instance and
+            gradient in mT/m. ``"block_edges"`` holds the block boundaries in s.
+        """
+        self._eval(
+            f"pgc_i = psq.loop({row}, 1); pgc_n2 = {row} - 1 + psq.segments(pgc_i).nBlocksInSegment;"
+            f"pgc_S = getsegmentinstance(psq, pgc_i, sys_ge, psq.loop({row}:pgc_n2, :), 'rotate', false, 'interpolate', true);"
+            f"if ~exist('seq_ref', 'var'), seq_ref = mr.Sequence(); seq_ref.read('{self._seq_file}'); end;"
+            f"pgc_w = seq_ref.waveforms_and_times(true, [{row} pgc_n2]);"
+        )
+        dead = float(self._get("sys_ge.segment_dead_time"))
+        out = {"played": {}, "seq": {}}
+        for k, ax in enumerate(("gx", "gy", "gz"), start=1):
+            t = np.asarray(self._get(f"pgc_S.{ax}.t")).ravel() - dead
+            g = np.asarray(self._get(f"pgc_S.{ax}.signal")).ravel() * 10
+            out["played"][ax] = (t, g)
+            w = np.atleast_2d(np.asarray(self._get(f"pgc_w{{{k}}}")))
+            if w.size:
+                out["seq"][ax] = (w[0], w[1] / self._get("sys_ge.gamma") / 10)
+            else:
+                out["seq"][ax] = (np.zeros(0), np.zeros(0))
+        out["block_edges"] = np.asarray(self._get("pgc_S.tic")).ravel() - dead
+        return out
 
     def serialize(self, path: str | os.PathLike, pislquant: int = 10) -> Path:
         """Write the checked sequence to a ``.pge`` file for the scanner.

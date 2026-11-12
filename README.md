@@ -5,15 +5,15 @@ with the pge2 interpreter.
 
 ## Part 1: writing a GE-friendly Pulseq sequence
 
-Each notebook starts from the same 2D gradient echo (gre2d), breaks one
-pge2 design rule, shows what the checks report, and asks you to fix it.
+The notebooks start from the 2D gradient echo that ships with pypulseq
+(`examples/scripts/write_gre.py`) and fix one pge2 issue at a time, on the
+way to the gre2d of the pge2 examples
+([`write2DGRE.m`](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/2DGRE/write2DGRE.m)).
 
 | notebook | topic |
 |---|---|
-| [00_gre2d_reference](exercises/00_gre2d_reference.ipynb) | the GE-friendly gre2d and the check chain: `pulseg.fromSeq`, `pge2.check`, `pge2.validate`, `pge2.serialize` |
-| [01_raster_time](exercises/01_raster_time.ipynb) | risk #1: pypulseq's default rasters are not GE's |
-| [02_events_in_loop](exercises/02_events_in_loop.ipynb) | risk #2: creating gradients inside the scan loop |
-| [03_trid_placement](exercises/03_trid_placement.ipynb) | risk #3: where TRID labels go (segment consistency and segment length) |
+| [01_rasters](exercises/01_rasters.ipynb) | the pypulseq GRE through `pulseg.fromSeq`, `pge2.check` and `pge2.validate`; GE raster times |
+| [02_events_in_loop](exercises/02_events_in_loop.ipynb) | a phase-encoding gradient created in every TR: what the scanner plays, and the `scale_grad` fix |
 
 The rules themselves are in the
 [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).
