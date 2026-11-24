@@ -16,6 +16,8 @@ pge2 design rule, shows what the checks report, and asks you to fix it.
 | [03a_trid_gre](exercises/03a_trid_gre.ipynb) | risk #3: where TRID labels go (segment consistency and segment length) |
 | [03b_trid_mprage](exercises/03b_trid_mprage.ipynb) | risk #3 in an MPRAGE: one segment per shot vs one per kind of TR |
 | [03c_trid_multislice](exercises/03c_trid_multislice.ipynb) | risk #3 in a multislice sequence: a pure delay segment to fill the TR |
+| [04_fse_timing](exercises/04_fse_timing.ipynb) | timing: an FSE echo train in one segment, packed gradients |
+| [05_epi_timing](exercises/05_epi_timing.ipynb) | timing: an EPI train in one segment, blips in the readout ramps |
 
 The rules themselves are in the
 [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).

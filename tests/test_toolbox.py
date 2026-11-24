@@ -60,3 +60,27 @@ def test_mprage_placements_give_expected_segment_lengths(ge):
     assert lengths == {"per_shot": [68], "three": [3, 4, 1]}
     with pytest.raises(pgecourse.PGE2Error, match="different numbers of blocks"):
         ge.from_seq(mprage("two", matrix=(32, 16, 4)))
+
+
+def test_played_timing_adds_the_segment_gap_per_echo_segment():
+    from pgecourse import played_block_starts
+    from pgecourse.sequences.fse import fse
+    from pgecourse.toolbox import SEGMENT_DEAD_TIME, SEGMENT_RINGDOWN_TIME
+
+    gap = SEGMENT_DEAD_TIME + SEGMENT_RINGDOWN_TIME
+    for placement, extra in (("per_echo", gap), ("train", 0.0)):
+        seq, esp = fse(placement, ny=16)
+        rf = [i for i, n in enumerate(seq.block_events) if seq.get_block(n).rf is not None]
+        t = played_block_starts(seq)
+        assert abs((t[rf[2]] - t[rf[1]]) - (esp + extra)) < 1e-9
+
+
+def test_packed_epi_has_shorter_echo_spacing_and_validates(ge):
+    from pgecourse.sequences.epi import epi
+
+    seq, esp_packed = epi("train", packed=True, repetitions=1)
+    _, esp_separate = epi("train", packed=False, repetitions=1)
+    assert esp_packed < esp_separate
+    ge.from_seq(seq)
+    ge.check()
+    assert ge.validate()
