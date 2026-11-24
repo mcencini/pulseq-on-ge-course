@@ -7,15 +7,16 @@ from .gre2d import GE_SYSTEM
 
 #: Ready-made TRID placements. Each maps a block kind to a TRID value, or
 #: None for no label. The kinds are, in the order they are played in a shot:
-#: "recovery" (pure delay), "inversion" (inversion pulse, then spoiler and TI
-#: delay) and "readout" (first block of every readout TR).
+#: "inversion" (inversion pulse, then spoiler and TI delay), "readout" (first
+#: block of every readout TR) and "recovery" (pure delay ending the shot).
 PLACEMENTS = {
     # one TRID per shot: the whole shot is one segment
-    "per_shot": {"recovery": 1, "inversion": None, "readout": None},
-    # preparation (recovery + inversion + TI) and readout TR
-    "two": {"recovery": 1, "inversion": None, "readout": 2},
-    # recovery delay, inversion + TI, readout TR
-    "three": {"recovery": 1, "inversion": 2, "readout": 3},
+    "per_shot": {"inversion": 1, "readout": None, "recovery": None},
+    # preparation and readout TR; the recovery delay joins the last readout
+    # TR, which then has one block more than the others (refused)
+    "two": {"inversion": 1, "readout": 2, "recovery": None},
+    # inversion + TI, readout TR, recovery delay
+    "three": {"inversion": 1, "readout": 2, "recovery": 3},
 }
 
 
@@ -31,15 +32,15 @@ def mprage(
 ):
     """Inversion-prepared 3D spoiled gradient echo, one shot per kz.
 
-    One shot = recovery delay, non-selective inversion, spoiler, TI delay,
-    then ``matrix[1]`` readout TRs (ky).
+    One shot = non-selective inversion, spoiler, TI delay, ``matrix[1]``
+    readout TRs (ky), then a recovery delay that completes the shot TR.
 
     Parameters
     ----------
     choose_trid : str or callable
         A key of ``PLACEMENTS``, or a function ``choose_trid(kind)`` that
-        returns the TRID for a block of that kind ("recovery", "inversion",
-        "readout"), or None for no label.
+        returns the TRID for a block of that kind ("inversion", "readout",
+        "recovery"), or None for no label.
     """
     if isinstance(choose_trid, str):
         placement = PLACEMENTS[choose_trid]
@@ -81,7 +82,6 @@ def mprage(
 
     rf_phase = rf_inc = 0.0
     for iz in range(nz):
-        seq.add_block(pp.make_delay(rec_delay), *labels("recovery"))
         seq.add_block(rf_inv, *labels("inversion"))
         seq.add_block(gz_inv_spoil)
         seq.add_block(pp.make_delay(ti_delay))
@@ -94,6 +94,7 @@ def mprage(
             seq.add_block(gx_pre, pp.scale_grad(gy_pe, sy), pp.scale_grad(gz_pe, sz))
             seq.add_block(gx, adc)
             seq.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
+        seq.add_block(pp.make_delay(rec_delay), *labels("recovery"))
 
     seq.set_definition("FOV", list(fov))
     seq.set_definition("Name", "mprage")

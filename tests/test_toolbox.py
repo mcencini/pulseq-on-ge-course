@@ -54,7 +54,9 @@ def test_mprage_placements_give_expected_segment_lengths(ge):
     from pgecourse.sequences.mprage import mprage
 
     lengths = {}
-    for name in ("per_shot", "two", "three"):
+    for name in ("per_shot", "three"):
         report = ge.from_seq(mprage(name, matrix=(32, 16, 4)))
         lengths[name] = [len(s.layout) for s in report.segments]
-    assert lengths == {"per_shot": [68], "two": [4, 4], "three": [1, 3, 4]}
+    assert lengths == {"per_shot": [68], "three": [3, 4, 1]}
+    with pytest.raises(pgecourse.PGE2Error, match="different numbers of blocks"):
+        ge.from_seq(mprage("two", matrix=(32, 16, 4)))
