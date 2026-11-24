@@ -17,8 +17,9 @@
 #INCLUDE _setup.py
 
 # %% [markdown]
-# The sequence is reduced to 64 × 64 × 16 so that the checks run quickly.
-# Events first, as usual, and the delays that set TI and the shot TR.
+# The sequence is reduced to 64 × 64 × 4 (four shots of 64 readout TRs) so
+# that the checks run quickly. Events first, as usual, and the delays that set
+# TI and the shot TR.
 
 # %%
 system = pp.Opts(
@@ -37,7 +38,7 @@ system = pp.Opts(
 )
 
 fov = (256e-3, 256e-3, 192e-3)
-nx, ny, nz = 64, 64, 16
+nx, ny, nz = 64, 64, 4
 dwell = 16e-6
 ti = 0.9        # inversion time (s), inversion to centre of the readout train
 shot_tr = 2.3   # (s)
@@ -195,7 +196,7 @@ print(pge2.check(psq, sys_ge))
 print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% [markdown]
-# The largest segment now has 4 blocks; the readout TR is played 1024 times.
+# The largest segment now has 4 blocks; the readout TR is played 256 times.
 # The recovery delay is a pure delay segment (layout `d`), so the shot TR can
 # be changed through that delay alone.
 

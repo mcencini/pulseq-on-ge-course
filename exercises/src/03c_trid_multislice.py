@@ -11,8 +11,8 @@
 #INCLUDE _setup.py
 
 # %% [markdown]
-# 8 slices, 64 lines, TR = 200 ms. Events first, then the delay that fills
-# the TR after the last slice.
+# 8 slices, 16 lines (reduced so that the checks run quickly), TR = 200 ms.
+# Events first, then the delay that fills the TR after the last slice.
 
 # %%
 system = pp.Opts(
@@ -31,7 +31,7 @@ system = pp.Opts(
 )
 
 fov = 240e-3
-n = 64
+n = 16
 n_slices = 8
 slice_thickness = 5e-3
 slice_gap = 2.5e-3
@@ -143,7 +143,7 @@ print("pge2.validate:", pge2.validate(psq, sys_ge))
 #
 # Add the labels so that there is one segment per slice and a separate pure
 # delay segment for the fill delay. Check that `pulseg.fromSeq` reports 2
-# segments, with 512 and 64 instances, and that `pge2.check` and
+# segments, with 128 and 16 instances, and that `pge2.check` and
 # `pge2.validate` pass.
 
 # %% tags=["raises-exception"]
