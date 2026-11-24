@@ -24,16 +24,19 @@ const { chromium } = require('playwright');
   await p.waitForTimeout(2000);
   const dlg = await p.$('.jp-Dialog');
   if (dlg) { console.log('[dialog] ' + (await dlg.innerText()).slice(0, 200)); await p.keyboard.press('Enter'); await p.waitForTimeout(1000); }
-  await p.click('text=Run', { timeout: 30000 });
-  await p.click('text=Run All Cells', { timeout: 30000 });
-  // done when no cell has been running or queued ([*]) for 15 s
-  let quiet = 0;
+  // Run the code cells one at a time, as a participant would: an error in a
+  // "Your turn" cell (expected before it is filled in) does not stop the rest.
+  const n = await p.$$eval('.jp-CodeCell', (els) => els.length);
   const limit = Date.now() + +(process.env.WAIT || 1500000);
-  while (Date.now() < limit) {
-    await p.waitForTimeout(3000);
-    const busy = await p.$$eval('.jp-CodeCell .jp-InputPrompt', (els) => els.some((e) => e.innerText.includes('*')));
-    quiet = busy ? 0 : quiet + 3;
-    if (quiet >= 15) break;
+  for (let i = 0; i < n && Date.now() < limit; i++) {
+    const cell = (await p.$$('.jp-CodeCell'))[i];
+    await cell.click({ position: { x: 5, y: 5 } });
+    await p.keyboard.press('Control+Enter');
+    await p.waitForFunction((i) => {
+      const t = document.querySelectorAll('.jp-CodeCell .jp-InputPrompt')[i]?.innerText || '';
+      return /\[\d+\]/.test(t);
+    }, i, { timeout: 600000, polling: 1000 }).catch(() => console.log(`[cell ${i} timeout]`));
+    if (process.env.VERBOSE) console.log(`[cell ${i + 1}/${n} done at ${(Date.now() - t0) / 1000} s]`);
   }
   const cells = await p.$$eval('.jp-CodeCell', (els) => els.map((e) => ({
     prompt: e.querySelector('.jp-InputPrompt')?.innerText || '',
