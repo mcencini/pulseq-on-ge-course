@@ -32,6 +32,10 @@
 #
 # The gradient limits are divided by √3 so that the same sequence can be
 # played in any oblique plane.
+#
+# Dead and ringdown times are set to 0. pypulseq uses them to pad every RF
+# and ADC event, which GE does not need; `pge2.check` tests the timing of the
+# final sequence instead.
 
 # %%
 system = pp.Opts(
@@ -39,9 +43,9 @@ system = pp.Opts(
     grad_unit="mT/m",
     max_slew=120 / np.sqrt(3),
     slew_unit="T/m/s",
-    rf_dead_time=100e-6,
-    rf_ringdown_time=60e-6,
-    adc_dead_time=40e-6,
+    rf_dead_time=0,
+    rf_ringdown_time=0,
+    adc_dead_time=0,
     rf_raster_time=2e-6,
     adc_raster_time=2e-6,
     grad_raster_time=4e-6,
