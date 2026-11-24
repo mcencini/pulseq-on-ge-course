@@ -18,10 +18,13 @@ const { chromium } = require('playwright');
   const p = await ctx.newPage();
   p.on('pageerror', (e) => console.log('[pageerror] ' + String(e).slice(0, 300)));
   const t0 = Date.now();
-  await p.goto(`${site}/notebooks/index.html?path=${nb}`);
+  const log = (s) => { if (process.env.VERBOSE) console.log(`[${((Date.now() - t0) / 1000).toFixed(1)} s] ${s}`); };
+  await p.goto(`${site}/notebooks/index.html?path=${nb}`, { waitUntil: "domcontentloaded" });
+  log('page loaded');
   await p.waitForSelector('.jp-Notebook .jp-Cell', { timeout: 120000 });
-  await p.waitForFunction(() => /Idle/.test(document.body.innerText), null, { timeout: 180000 }).catch(() => {});
+  log('notebook shown');
   await p.waitForTimeout(2000);
+  if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT });
   const dlg = await p.$('.jp-Dialog');
   if (dlg) { console.log('[dialog] ' + (await dlg.innerText()).slice(0, 200)); await p.keyboard.press('Enter'); await p.waitForTimeout(1000); }
   // Run the code cells one at a time, as a participant would: an error in a
@@ -29,14 +32,18 @@ const { chromium } = require('playwright');
   const n = await p.$$eval('.jp-CodeCell', (els) => els.length);
   const limit = Date.now() + +(process.env.WAIT || 1500000);
   for (let i = 0; i < n && Date.now() < limit; i++) {
-    const cell = (await p.$$('.jp-CodeCell'))[i];
-    await cell.click({ position: { x: 5, y: 5 } });
+    // select the cell by its prompt (its left edge is the collapse bar), then run it
+    const prompt = (await p.$$('.jp-CodeCell .jp-InputPrompt'))[i];
+    await prompt.click();
     await p.keyboard.press('Control+Enter');
     await p.waitForFunction((i) => {
       const t = document.querySelectorAll('.jp-CodeCell .jp-InputPrompt')[i]?.innerText || '';
       return /\[\d+\]/.test(t);
-    }, i, { timeout: 600000, polling: 1000 }).catch(() => console.log(`[cell ${i} timeout]`));
-    if (process.env.VERBOSE) console.log(`[cell ${i + 1}/${n} done at ${(Date.now() - t0) / 1000} s]`);
+    }, i, { timeout: +(process.env.CELL_TIMEOUT || 120000), polling: 500 }).catch(async () => {
+      console.log(`[cell ${i} timeout]`);
+      if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT.replace(/\.png$/, `-cell${i}.png`) });
+    });
+    log(`cell ${i + 1}/${n} done`);
   }
   const cells = await p.$$eval('.jp-CodeCell', (els) => els.map((e) => ({
     prompt: e.querySelector('.jp-InputPrompt')?.innerText || '',
