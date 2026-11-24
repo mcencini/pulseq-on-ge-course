@@ -94,7 +94,7 @@ for iy in range(n):
 
 try:
     ge.from_seq(seq_a)
-except pgecourse.PGE2Error as err:
+except pge2py.PGE2Error as err:
     print("from_seq:", err)
 
 # %% [markdown]

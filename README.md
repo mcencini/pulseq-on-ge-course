@@ -27,24 +27,24 @@ The rules themselves are in the
 The sequences are written in Python with [pypulseq](https://github.com/imr-framework/pypulseq).
 They are checked with the same MATLAB toolboxes used before a scan,
 [pulseg](https://github.com/HarmonizedMRI/pulseg) and [pge2](https://github.com/HarmonizedMRI/pge2),
-running in GNU Octave and called from Python through oct2py. The `pgecourse`
-helper package downloads the Pulseq, pulseg and pge2 MATLAB toolboxes at
-pinned commits on first use.
+running in GNU Octave and called from Python through
+[pge2py](https://github.com/mcencini/pge2py), which bundles the toolboxes at
+pinned commits.
 
-**Google Colab** (nothing to install): open a notebook in Colab and run its
-first code cell, the one-line setup
+**In the browser** (nothing to install, runs on your own computer): open the
+course site, <https://mcencini.github.io/pulseq-on-ge-course/>, and a notebook.
+pge2py runs GNU Octave compiled to WebAssembly inside the browser tab; the site
+serves everything, including Python (Pyodide). Run the first code cell, which
+installs the course packages from the site in a few seconds. Tested in Chrome.
 
-```
-!pip -q install git+https://github.com/GEHC-External/pulseq-ge-course && python -m pgecourse.colab
-```
+**Google Colab**: open a notebook in Colab and run its first code cell, which
+installs this package, pge2py and GNU Octave (about 2 minutes).
 
-which installs this package and GNU Octave (about 2 minutes).
-
-**Your own computer**: install [GNU Octave](https://octave.org/download) and
-git, then, in this repository,
+**Your own computer**: install [GNU Octave](https://octave.org/download), then,
+in this repository,
 
 ```bash
-pip install -e . jupyterlab
+pip install -e ".[octave]" jupyterlab
 jupyter lab
 ```
 
@@ -62,7 +62,20 @@ pytest -q
 ```
 
 `exercises/src/_setup.py` holds the setup cells shared by every notebook;
-the Colab install cell is tagged `colab-only`, and the tests skip it.
+the install cell is tagged `install`, and the tests skip it.
 Solution cells carry Colab's `cellView: form`, so Colab shows them collapsed.
 "Your turn" cells are tagged `raises-exception`, so a notebook still runs top
 to bottom before the participant fills them in.
+
+The course site is built by `lite/build_site.py` (see `.github/workflows/site.yml`,
+which deploys it to GitHub Pages from `main`). To build and try it locally:
+
+```bash
+pip install -r lite/requirements.txt
+python lite/build_site.py                      # or --pge2py path/to/pge2py.whl
+(cd lite/_output && python -m http.server 8768) &
+node lite/tests/run_notebook.js http://localhost:8768 00_gre2d_reference.ipynb
+```
+
+`run_notebook.js` runs a notebook in headless Chromium with every request
+outside the site blocked.

@@ -1,13 +1,14 @@
 import pypulseq as pp
 import pytest
 
+import pge2py
 import pgecourse
 from pgecourse.sequences import GE_SYSTEM, gre2d
 
 
 @pytest.fixture(scope="module")
 def ge():
-    return pgecourse.GE()
+    return pge2py.GE()
 
 
 def test_reference_gre2d_has_three_one_tr_segments_from_five_base_blocks(ge):
@@ -31,14 +32,14 @@ def test_reference_gre2d_passes_pge2_check_and_validate(ge, tmp_path):
 def test_pypulseq_default_rasters_are_rejected_by_pge2_check(ge):
     system = pp.Opts(max_grad=28, grad_unit="mT/m", max_slew=69, slew_unit="T/m/s", rf_dead_time=100e-6)
     ge.from_seq(gre2d(system))
-    with pytest.raises(pgecourse.PGE2Error, match="RF_UPDATE_TIME"):
+    with pytest.raises(pge2py.PGE2Error, match="RF_UPDATE_TIME"):
         ge.check()
 
 
 def test_sequence_without_trid_is_refused_before_pulseg(ge):
     seq = pp.Sequence(GE_SYSTEM)
     seq.add_block(pp.make_delay(1e-3))
-    with pytest.raises(pgecourse.PGE2Error, match="no TRID"):
+    with pytest.raises(pge2py.PGE2Error, match="no TRID"):
         ge.from_seq(seq)
 
 
@@ -46,7 +47,7 @@ def test_segment_instances_with_different_block_counts_are_refused(ge):
     from pgecourse.sequences.multislice import multislice_gre
 
     seq = multislice_gre(lambda kind, s: 1 if kind == "slice" else None, n=4)
-    with pytest.raises(pgecourse.PGE2Error, match="different numbers of blocks"):
+    with pytest.raises(pge2py.PGE2Error, match="different numbers of blocks"):
         ge.from_seq(seq)
 
 
@@ -58,14 +59,14 @@ def test_mprage_placements_give_expected_segment_lengths(ge):
         report = ge.from_seq(mprage(name, matrix=(32, 16, 4)))
         lengths[name] = [len(s.layout) for s in report.segments]
     assert lengths == {"per_shot": [68], "three": [3, 4, 1]}
-    with pytest.raises(pgecourse.PGE2Error, match="different numbers of blocks"):
+    with pytest.raises(pge2py.PGE2Error, match="different numbers of blocks"):
         ge.from_seq(mprage("two", matrix=(32, 16, 4)))
 
 
 def test_played_timing_adds_the_segment_gap_per_echo_segment():
     from pgecourse import played_block_starts
     from pgecourse.sequences.fse import fse
-    from pgecourse.toolbox import SEGMENT_DEAD_TIME, SEGMENT_RINGDOWN_TIME
+    from pgecourse import SEGMENT_DEAD_TIME, SEGMENT_RINGDOWN_TIME
 
     gap = SEGMENT_DEAD_TIME + SEGMENT_RINGDOWN_TIME
     for placement, extra in (("per_echo", gap), ("train", 0.0)):

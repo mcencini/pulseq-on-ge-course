@@ -130,7 +130,7 @@ for iz in range(nz):
 
 try:
     ge.from_seq(seq_b)
-except pgecourse.PGE2Error as err:
+except pge2py.PGE2Error as err:
     print("from_seq:", err)
 
 # %% [markdown]

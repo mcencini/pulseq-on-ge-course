@@ -1,0 +1,45 @@
+name: site
+
+# Build the course site (JupyterLite: every exercise notebook, runnable in the
+# browser with nothing installed) and deploy it to GitHub Pages from main.
+# On other branches and pull requests it only builds, as a check.
+
+on:
+  push:
+    paths: ["exercises/**", "pgecourse/**", "lite/**", "pyproject.toml", ".github/workflows/site.yml"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the site
+        run: |
+          python -m pip install -r lite/requirements.txt
+          python lite/build_site.py --out lite/_output
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: lite/_output
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

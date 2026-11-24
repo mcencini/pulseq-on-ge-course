@@ -10,7 +10,7 @@ NOTEBOOKS = sorted((Path(__file__).parents[1] / "exercises").glob("[0-9]*.ipynb"
 @pytest.mark.parametrize("path", NOTEBOOKS, ids=[p.stem for p in NOTEBOOKS])
 def test_notebook_runs_top_to_bottom(path, tmp_path):
     nb = nbformat.read(path, as_version=4)
-    nb.cells = [c for c in nb.cells if "colab-only" not in c.metadata.get("tags", [])]
+    nb.cells = [c for c in nb.cells if "install" not in c.metadata.get("tags", [])]
     NotebookClient(nb, timeout=900, kernel_name="python3", resources={"metadata": {"path": str(tmp_path)}}).execute()
 
 

@@ -4,3 +4,4 @@ __pycache__/
 *.seq
 *.pge
 .pytest_cache/
+build/

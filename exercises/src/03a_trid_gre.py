@@ -92,7 +92,7 @@ for iy in range(-n_dummy - pislquant, n):
 
 try:
     ge.from_seq(seq_a)
-except pgecourse.PGE2Error as err:
+except pge2py.PGE2Error as err:
     print("pulseg.fromSeq:", err)
 
 # %% [markdown]

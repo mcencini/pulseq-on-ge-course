@@ -9,13 +9,15 @@ description = "Helpers for the Pulseq on GE (pge2) course notebooks"
 requires-python = ">=3.10"
 dependencies = [
     "pypulseq==1.5.0.post1",
-    "oct2py>=5.7",
+    "pge2py>=0.1.0",
     "numpy",
     "matplotlib",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "nbclient", "ipykernel", "jupytext"]
+# outside the browser, pge2py runs the toolboxes in a local GNU Octave
+octave = ["pge2py[octave]>=0.1.0"]
+dev = ["pytest", "nbclient", "ipykernel", "jupytext", "pge2py[octave]>=0.1.0"]
 
 [tool.setuptools.packages.find]
 include = ["pgecourse*"]

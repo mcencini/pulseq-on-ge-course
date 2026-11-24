@@ -1,15 +1,22 @@
 # %% [markdown]
-# Run the next cell once per session. On Colab it installs the course package
-# and GNU Octave (about 2 minutes); on your own computer, follow the README
+# Run the next cell once per session. In the browser (JupyterLite) it installs
+# the course packages from the course site, in a few seconds; on Colab it also
+# installs GNU Octave (about 2 minutes). On your own computer, follow the README
 # instead and skip it.
 
-# %% tags=["colab-only"]
-# !pip -q install git+https://github.com/GEHC-External/pulseq-ge-course && python -m pgecourse.colab
+# %% tags=["install"]
+import sys
+
+if sys.platform == "emscripten":  # JupyterLite: everything runs in this browser tab
+    %pip install pgecourse
+else:  # Colab
+    %pip install -q "pgecourse[octave] @ git+https://github.com/GEHC-External/pulseq-ge-course"
+    !python -m pgecourse.colab
 
 # %%
 import numpy as np
 import pypulseq as pp
 
-import pgecourse
+import pge2py
 
-ge = pgecourse.GE()  # downloads the Pulseq, pulseg and pge2 toolboxes on first use
+ge = pge2py.GE()

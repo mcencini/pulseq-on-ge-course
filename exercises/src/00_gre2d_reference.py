@@ -15,7 +15,9 @@
 # 4. **`pge2.serialize`** writes the `.pge` file that goes to the scanner.
 #
 # pulseg and pge2 are MATLAB toolboxes. Here they run in GNU Octave, called
-# from Python; the `ge` object below does that for you.
+# from Python through [pge2py](https://github.com/mcencini/pge2py): in the
+# browser, Octave compiled to WebAssembly, on your own machine; on Colab or
+# your computer, a regular GNU Octave. The `ge` object below does that for you.
 #
 # Reference: [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).
 

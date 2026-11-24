@@ -107,7 +107,7 @@ print("Pulseq timing check passed:", seq.check_timing()[0])
 ge.from_seq(seq)
 try:
     ge.check()
-except pgecourse.PGE2Error as err:
+except pge2py.PGE2Error as err:
     print("pge2.check:", err)
 
 # %% [markdown]
@@ -178,7 +178,7 @@ wrong_grad = pp.Opts(
 ge.from_seq(gre2d(wrong_grad))
 try:
     ge.check()
-except pgecourse.PGE2Error as err:
+except pge2py.PGE2Error as err:
     print("2.", err)
 
 # 3. A 15 us dwell is not a multiple of 2 us; 14 us or 16 us works.
@@ -186,7 +186,7 @@ except pgecourse.PGE2Error as err:
 ge.from_seq(gre2d(system, dwell=15e-6))
 try:
     ge.check()
-except pgecourse.PGE2Error as err:
+except pge2py.PGE2Error as err:
     print("3.", err)
 
 # %% [markdown]

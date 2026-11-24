@@ -1,5 +1,8 @@
-"""Helpers for the Pulseq on GE (pge2) course notebooks."""
+"""Helpers for the Pulseq on GE (pge2) course notebooks.
 
-from .toolbox import DEFAULT_SCANNER, GE, PGE2Error, SegmentReport, played_block_starts, prepare_toolboxes
+The check chain (pulseg and pge2) is in pge2py: ``pge2py.GE``.
+"""
 
-__all__ = ["DEFAULT_SCANNER", "GE", "PGE2Error", "SegmentReport", "played_block_starts", "prepare_toolboxes"]
+from .timing import SEGMENT_DEAD_TIME, SEGMENT_RINGDOWN_TIME, played_block_starts
+
+__all__ = ["SEGMENT_DEAD_TIME", "SEGMENT_RINGDOWN_TIME", "played_block_starts"]
