@@ -93,9 +93,10 @@ for iz in range(nz):
         seq_a.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
     seq_a.add_block(pp.make_delay(rec_delay))
 
-print(ge.from_seq(seq_a))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_a)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% [markdown]
 # Every check passes. The segment holds 260 blocks: the inversion, its
@@ -129,8 +130,8 @@ for iz in range(nz):
     seq_b.add_block(pp.make_delay(rec_delay))
 
 try:
-    ge.from_seq(seq_b)
-except pge2py.PGE2Error as err:
+    psq = pulseg.fromSeq(seq_b)
+except pge2.PGE2Error as err:
     print("from_seq:", err)
 
 # %% [markdown]
@@ -164,9 +165,10 @@ for iz in range(nz):
         seq.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
     seq.add_block(pp.make_delay(rec_delay))  # TODO
 
-print(ge.from_seq(seq))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% cellView="form"
 # @title Solution (double-click to show the code)
@@ -187,9 +189,10 @@ for iz in range(nz):
         seq.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
     seq.add_block(pp.make_delay(rec_delay), TRID[2])
 
-print(ge.from_seq(seq))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% [markdown]
 # The largest segment now has 4 blocks; the readout TR is played 1024 times.

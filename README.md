@@ -29,13 +29,24 @@ They are checked with the same MATLAB toolboxes used before a scan,
 [pulseg](https://github.com/HarmonizedMRI/pulseg) and [pge2](https://github.com/HarmonizedMRI/pge2),
 running in GNU Octave and called from Python through
 [pge2py](https://github.com/mcencini/pge2py), which bundles the toolboxes at
-pinned commits.
+pinned commits, with the calls of the MATLAB toolboxes:
+
+```python
+import pge2py as pge2
+from pge2py import pulseg
+
+psq = pulseg.fromSeq(seq)
+sys_ge = pge2.opts(100e-6, 100e-6, 0.25, 5, 20, "xrm")
+params = pge2.check(psq, sys_ge)
+pge2.validate(psq, sys_ge)
+pge2.serialize(psq, "sequence.pge", pislquant=10, params=params)
+```
 
 **In the browser** (nothing to install, runs on your own computer): open the
 course site, <https://mcencini.github.io/pulseq-on-ge-course/>, and a notebook.
 pge2py runs GNU Octave compiled to WebAssembly inside the browser tab; the site
-serves everything, including Python (Pyodide). Run the first code cell, which
-installs the course packages from the site in a few seconds. Tested in Chrome.
+serves everything, including Python (Pyodide), and the packages are loaded
+when the notebook starts: there is no setup cell. Tested in Chrome.
 
 **Google Colab**: open a notebook in Colab and run its first code cell, which
 installs this package, pge2py and GNU Octave (about 2 minutes).
@@ -62,7 +73,8 @@ pytest -q
 ```
 
 `exercises/src/_setup.py` holds the setup cells shared by every notebook;
-the install cell is tagged `install`, and the tests skip it.
+the Colab install cell is tagged `install`: the tests skip it, and the site
+build removes it (the site preloads the packages instead).
 Solution cells carry Colab's `cellView: form`, so Colab shows them collapsed.
 "Your turn" cells are tagged `raises-exception`, so a notebook still runs top
 to bottom before the participant fills them in.

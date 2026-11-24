@@ -1,18 +1,23 @@
 import pypulseq as pp
 import pytest
 
-import pge2py
+import pge2py as pge2
+from pge2py import pulseg
 import pgecourse
 from pgecourse.sequences import GE_SYSTEM, gre2d
 
 
+SYS_GE = pge2.opts(100e-6, 100e-6, 0.25, 5, 20, "xrm")
+
+
 @pytest.fixture(scope="module")
 def ge():
-    return pge2py.GE()
+    """Starts Octave once for the module (the first call starts it)."""
+    return None
 
 
 def test_reference_gre2d_has_three_one_tr_segments_from_five_base_blocks(ge):
-    report = ge.from_seq(gre2d())
+    report = pulseg.fromSeq(gre2d())
     assert [(s.trid, s.n_instances, s.layout) for s in report.segments] == [
         (1, 20, "ABCDd"),
         (2, 10, "ABEDd"),
@@ -23,32 +28,33 @@ def test_reference_gre2d_has_three_one_tr_segments_from_five_base_blocks(ge):
 
 
 def test_reference_gre2d_passes_pge2_check_and_validate(ge, tmp_path):
-    ge.from_seq(gre2d())
-    ge.check()
-    assert ge.validate()
-    assert ge.serialize(tmp_path / "gre2d.pge").stat().st_size > 0
+    psq = pulseg.fromSeq(gre2d())
+    pge2.check(psq, SYS_GE)
+    assert pge2.validate(psq, SYS_GE)
+    params = pge2.check(psq, SYS_GE)
+    assert pge2.serialize(psq, tmp_path / "gre2d.pge", params=params).stat().st_size > 0
 
 
 def test_pypulseq_default_rasters_are_rejected_by_pge2_check(ge):
     system = pp.Opts(max_grad=28, grad_unit="mT/m", max_slew=69, slew_unit="T/m/s", rf_dead_time=100e-6)
-    ge.from_seq(gre2d(system))
-    with pytest.raises(pge2py.PGE2Error, match="RF_UPDATE_TIME"):
-        ge.check()
+    psq = pulseg.fromSeq(gre2d(system))
+    with pytest.raises(pge2.PGE2Error, match="RF_UPDATE_TIME"):
+        pge2.check(psq, SYS_GE)
 
 
 def test_sequence_without_trid_is_refused_before_pulseg(ge):
     seq = pp.Sequence(GE_SYSTEM)
     seq.add_block(pp.make_delay(1e-3))
-    with pytest.raises(pge2py.PGE2Error, match="no TRID"):
-        ge.from_seq(seq)
+    with pytest.raises(pge2.PGE2Error, match="no TRID"):
+        psq = pulseg.fromSeq(seq)
 
 
 def test_segment_instances_with_different_block_counts_are_refused(ge):
     from pgecourse.sequences.multislice import multislice_gre
 
     seq = multislice_gre(lambda kind, s: 1 if kind == "slice" else None, n=4)
-    with pytest.raises(pge2py.PGE2Error, match="different numbers of blocks"):
-        ge.from_seq(seq)
+    with pytest.raises(pge2.PGE2Error, match="different numbers of blocks"):
+        psq = pulseg.fromSeq(seq)
 
 
 def test_mprage_placements_give_expected_segment_lengths(ge):
@@ -56,11 +62,11 @@ def test_mprage_placements_give_expected_segment_lengths(ge):
 
     lengths = {}
     for name in ("per_shot", "three"):
-        report = ge.from_seq(mprage(name, matrix=(32, 16, 4)))
+        report = pulseg.fromSeq(mprage(name, matrix=(32, 16, 4)))
         lengths[name] = [len(s.layout) for s in report.segments]
     assert lengths == {"per_shot": [68], "three": [3, 4, 1]}
-    with pytest.raises(pge2py.PGE2Error, match="different numbers of blocks"):
-        ge.from_seq(mprage("two", matrix=(32, 16, 4)))
+    with pytest.raises(pge2.PGE2Error, match="different numbers of blocks"):
+        psq = pulseg.fromSeq(mprage("two", matrix=(32, 16, 4)))
 
 
 def test_played_timing_adds_the_segment_gap_per_echo_segment():
@@ -82,6 +88,6 @@ def test_packed_epi_has_shorter_echo_spacing_and_validates(ge):
     seq, esp_packed = epi("train", packed=True, repetitions=1)
     _, esp_separate = epi("train", packed=False, repetitions=1)
     assert esp_packed < esp_separate
-    ge.from_seq(seq)
-    ge.check()
-    assert ge.validate()
+    psq = pulseg.fromSeq(seq)
+    pge2.check(psq, SYS_GE)
+    assert pge2.validate(psq, SYS_GE)

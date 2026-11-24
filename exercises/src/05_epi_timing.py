@@ -119,9 +119,10 @@ for _ in range(repetitions):
     seq_a.add_block(g_spoil, TRID[2])
     seq_a.add_block(pp.make_delay(fill), TRID[3])
 
-print(ge.from_seq(seq_a))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_a)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 epi_timing(seq_a)
 
 # %% [markdown]
@@ -153,9 +154,10 @@ for _ in range(repetitions):
     seq.add_block(g_spoil, TRID[2])  # TODO
     seq.add_block(pp.make_delay(fill), TRID[3])
 
-print(ge.from_seq(seq))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 epi_timing(seq)
 
 # %% cellView="form"
@@ -174,9 +176,10 @@ for _ in range(repetitions):
     seq.add_block(g_spoil)
     seq.add_block(pp.make_delay(fill), TRID[3])
 
-print(ge.from_seq(seq))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 epi_timing(seq)
 
 # %% [markdown]
@@ -213,9 +216,10 @@ for _ in range(repetitions):
     seq_c.add_block(g_spoil)
     seq_c.add_block(pp.make_delay(fill_packed), TRID[3])
 
-print(ge.from_seq(seq_c))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_c)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 epi_timing(seq_c)
 
 # %% [markdown]

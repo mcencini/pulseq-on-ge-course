@@ -15,9 +15,10 @@
 # 4. **`pge2.serialize`** writes the `.pge` file that goes to the scanner.
 #
 # pulseg and pge2 are MATLAB toolboxes. Here they run in GNU Octave, called
-# from Python through [pge2py](https://github.com/mcencini/pge2py): in the
+# from Python through [pge2py](https://github.com/mcencini/pge2py), with the
+# same calls as in MATLAB (`pulseg.fromSeq`, `pge2.check`, ...): in the
 # browser, Octave compiled to WebAssembly, on your own machine; on Colab or
-# your computer, a regular GNU Octave. The `ge` object below does that for you.
+# your computer, a regular GNU Octave.
 #
 # Reference: [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).
 
@@ -171,8 +172,8 @@ seq.plot(time_range=(0, 3 * tr));
 # length and `v` for a pure delay whose length changes between instances.
 
 # %%
-report = ge.from_seq(seq)
-report
+psq = pulseg.fromSeq(seq)
+psq
 
 # %% [markdown]
 # Things to notice:
@@ -189,12 +190,18 @@ report
 # %% [markdown]
 # ## 2. Hardware checks: `pge2.check`
 #
-# Returns peak B1 (G), peak gradient (G/cm) and peak slew rate (G/cm/ms)
-# over the whole scan. It raises an error if any block breaks a timing rule or
-# a hardware limit.
+# `pge2.opts` describes the scanner: RF-gradient and ADC-gradient delays (s),
+# peak B1 (G), peak gradient (G/cm), peak slew rate (G/cm/ms), gradient coil.
+# The values below are those of the HarmonizedMRI 2DGRE demo; set your own.
+#
+# `pge2.check` returns peak B1 (G), peak gradient (G/cm) and peak slew rate
+# (G/cm/ms) over the whole scan. It raises an error if any block breaks a
+# timing rule or a hardware limit.
 
 # %%
-ge.check()
+sys_ge = pge2.opts(100e-6, 100e-6, 0.25, 5, 20, "xrm")
+params = pge2.check(psq, sys_ge)
+params
 
 # %% [markdown]
 # ## 3. Does the interpreter play what the `.seq` file says? `pge2.validate`
@@ -203,13 +210,13 @@ ge.check()
 # wrong image.
 
 # %%
-ge.validate()
+pge2.validate(psq, sys_ge)
 
 # %% [markdown]
 # ## 4. Write the `.pge` file
 
 # %%
-ge.serialize("gre2d.pge", pislquant=pislquant)
+pge2.serialize(psq, "gre2d.pge", pislquant=pislquant, params=params)
 
 # %% [markdown]
 # ## What made this sequence GE-friendly

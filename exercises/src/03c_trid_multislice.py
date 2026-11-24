@@ -93,8 +93,8 @@ for iy in range(n):
     seq_a.add_block(pp.make_delay(fill))
 
 try:
-    ge.from_seq(seq_a)
-except pge2py.PGE2Error as err:
+    psq = pulseg.fromSeq(seq_a)
+except pge2.PGE2Error as err:
     print("from_seq:", err)
 
 # %% [markdown]
@@ -128,9 +128,10 @@ for iy in range(n):
         seq_b.add_block(gx_spoil, pp.scale_grad(gy_pe, -scale), gz_spoil)
     seq_b.add_block(pp.make_delay(fill))
 
-print(ge.from_seq(seq_b))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_b)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% [markdown]
 # This one is valid: 33 blocks per segment. But the segment is 8 copies of
@@ -161,9 +162,10 @@ for iy in range(n):
         seq.add_block(gx_spoil, pp.scale_grad(gy_pe, -scale), gz_spoil)
     seq.add_block(pp.make_delay(fill))  # TODO
 
-print(ge.from_seq(seq))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% cellView="form"
 # @title Solution (double-click to show the code)
@@ -182,9 +184,10 @@ for iy in range(n):
         seq.add_block(gx_spoil, pp.scale_grad(gy_pe, -scale), gz_spoil)
     seq.add_block(pp.make_delay(fill), TRID[1])
 
-print(ge.from_seq(seq))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% [markdown]
 # The slice segment has 4 blocks whatever the number of slices, and the fill

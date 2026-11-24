@@ -97,17 +97,17 @@ print("Pulseq timing check passed:", seq.check_timing()[0])
 # Conversion and hardware checks both pass:
 
 # %%
-report = ge.from_seq(seq)
-print(report)
-print(ge.check())
+psq = pulseg.fromSeq(seq)
+print(psq)
+print(pge2.check(psq, sys_ge))
 
 # %% [markdown]
 # ...but validation does not:
 
 # %%
-ok = ge.validate()
+ok = pge2.validate(psq, sys_ge)
 print("pge2.validate:", ok)
-print("\n".join(ge.last_messages[:5]))
+print("\n".join(pge2.last_messages[:5]))
 
 # %% [markdown]
 # ## What happened
@@ -139,7 +139,7 @@ for iy in (0, n // 4, n // 2 - 1):
 # 1. Create **one** phase-encoding trapezoid before the loop, sized for the
 #    largest |ky| area.
 # 2. In the loop, scale it with `pp.scale_grad` (both prephaser and rewinder).
-# 3. Check that `ge.validate()` returns `True` and that the report shows
+# 3. Check that `pge2.validate(psq, sys_ge)` returns `True` and that the report shows
 #    fewer base blocks.
 
 # %% tags=["raises-exception"]
@@ -168,8 +168,9 @@ def fixed_gre2d():
     return seq
 
 
-print(ge.from_seq(fixed_gre2d()))
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(fixed_gre2d())
+print(psq)
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% cellView="form"
 # @title Solution (double-click to show the code)
@@ -199,8 +200,9 @@ def fixed_gre2d():
     return seq
 
 
-print(ge.from_seq(fixed_gre2d()))
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(fixed_gre2d())
+print(psq)
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 
 # %% [markdown]
 # ## Going further: "it works" is not the same as "it is right"

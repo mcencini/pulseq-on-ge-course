@@ -104,10 +104,10 @@ print("Pulseq timing check passed:", seq.check_timing()[0])
 # look at rasters. `pge2.check` is where it fails:
 
 # %%
-ge.from_seq(seq)
+psq = pulseg.fromSeq(seq)
 try:
-    ge.check()
-except pge2py.PGE2Error as err:
+    pge2.check(psq, sys_ge)
+except pge2.PGE2Error as err:
     print("pge2.check:", err)
 
 # %% [markdown]
@@ -137,8 +137,8 @@ system = pp.Opts(
     # TODO: set the four rasters here
 )
 
-ge.from_seq(gre2d(system))
-ge.check()
+psq = pulseg.fromSeq(gre2d(system))
+pge2.check(psq, sys_ge)
 
 # %% cellView="form"
 # @title Solution (double-click to show the code)
@@ -156,8 +156,8 @@ system = pp.Opts(
     rf_raster_time=2e-6,
     adc_raster_time=2e-6,
 )
-ge.from_seq(gre2d(system))
-print("1.", ge.check())
+psq = pulseg.fromSeq(gre2d(system))
+print("1.", pge2.check(psq, sys_ge))
 
 # 2. With a 10 us gradient raster, the readout trapezoid ramps take a
 #    multiple of 10 us, which is not a multiple of 4 us.
@@ -175,18 +175,18 @@ wrong_grad = pp.Opts(
     rf_raster_time=2e-6,
     adc_raster_time=2e-6,
 )
-ge.from_seq(gre2d(wrong_grad))
+psq = pulseg.fromSeq(gre2d(wrong_grad))
 try:
-    ge.check()
-except pge2py.PGE2Error as err:
+    pge2.check(psq, sys_ge)
+except pge2.PGE2Error as err:
     print("2.", err)
 
 # 3. A 15 us dwell is not a multiple of 2 us; 14 us or 16 us works.
 #    pypulseq's own check flags this one too, as a warning when writing.
-ge.from_seq(gre2d(system, dwell=15e-6))
+psq = pulseg.fromSeq(gre2d(system, dwell=15e-6))
 try:
-    ge.check()
-except pge2py.PGE2Error as err:
+    pge2.check(psq, sys_ge)
+except pge2.PGE2Error as err:
     print("3.", err)
 
 # %% [markdown]

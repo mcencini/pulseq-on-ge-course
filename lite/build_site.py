@@ -41,6 +41,10 @@ PYODIDE_SEEDS = [
     "numpy", "scipy", "matplotlib", "coverage",
 ]
 
+#: Pyodide packages loaded when the kernel starts, so that no notebook needs
+#: an install cell: the dependencies of pypulseq, pge2py and pgecourse.
+PRELOAD = ["numpy", "scipy", "matplotlib", "coverage"]
+
 #: Wheels served from the site's own package index (installed with %pip).
 WHEELS = ["pypulseq==1.5.0.post1", "comm"]
 
@@ -103,6 +107,16 @@ def main():
     for nb in sorted((ROOT / "exercises").glob("[0-9]*.ipynb")):
         data = json.loads(nb.read_text())
         data["metadata"]["kernelspec"] = {"name": "python", "display_name": "Python (Pyodide)", "language": "python"}
+        # The install cell (and the note before it) is for Colab only: on the
+        # site the kernel preloads every package at start-up.
+        cells = data["cells"]
+        for i, c in enumerate(cells):
+            if "install" in c.get("metadata", {}).get("tags", []):
+                drop = {i}
+                if i > 0 and cells[i - 1]["cell_type"] == "markdown":
+                    drop.add(i - 1)
+                data["cells"] = [c for j, c in enumerate(cells) if j not in drop]
+                break
         (work / "files" / nb.name).write_text(json.dumps(data, indent=1, ensure_ascii=False))
 
     pypi = work / "pypi"
@@ -113,7 +127,13 @@ def main():
         run(sys.executable, "-m", "pip", "download", "--no-deps", "-q", "-d", str(pypi), "pge2py")
     run(sys.executable, "-m", "pip", "download", "--no-deps", "-q", "-d", str(pypi), *WHEELS)
 
-    shutil.copy(HERE / "jupyter-lite.json", work / "jupyter-lite.json")
+    config = json.loads((HERE / "jupyter-lite.json").read_text())
+    kernel = config["jupyter-config-data"]["litePluginSettings"]["@jupyterlite/pyodide-kernel-extension:kernel"]
+    # wheel URLs are resolved from the kernel's worker script,
+    # extensions/@jupyterlite/pyodide-kernel-extension/static/
+    wheels = sorted(p.name for p in pypi.glob("*.whl") if not p.name.startswith("comm-"))
+    kernel["loadPyodideOptions"] = {"packages": PRELOAD + [f"../../../../pypi/{w}" for w in wheels]}
+    (work / "jupyter-lite.json").write_text(json.dumps(config, indent=2))
     shutil.rmtree(args.out, ignore_errors=True)
     run(sys.executable, "-m", "jupyter", "lite", "build", "--output-dir", str(args.out.resolve()), cwd=work)
     add_pyodide(args.out)

@@ -140,9 +140,10 @@ for shot in range(order.shape[0]):
         seq_a.add_block(gz_crush, pp.scale_grad(gy_pe, -scale))
     seq_a.add_block(pp.make_delay(fill), TRID[2])
 
-print(ge.from_seq(seq_a))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_a)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 cpmg_timing(seq_a)
 
 # %% [markdown]
@@ -174,9 +175,10 @@ for shot in range(order.shape[0]):
         seq_b.add_block(gz_crush, pp.scale_grad(gy_pe, -scale))
     seq_b.add_block(pp.make_delay(fill), TRID[2])
 
-print(ge.from_seq(seq_b))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_b)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 cpmg_timing(seq_b)
 
 # %% cellView="form"
@@ -194,9 +196,10 @@ for shot in range(order.shape[0]):
         seq_b.add_block(gz_crush, pp.scale_grad(gy_pe, -scale))
     seq_b.add_block(pp.make_delay(fill), TRID[2])
 
-print(ge.from_seq(seq_b))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_b)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 cpmg_timing(seq_b)
 
 # %% [markdown]
@@ -285,9 +288,10 @@ for shot in range(order.shape[0]):
         seq_c.add_block(z_before if e < etl - 1 else z_last, pp.scale_grad(gy_pe_p, -scale))
     seq_c.add_block(pp.make_delay(fill_packed), TRID[2])
 
-print(ge.from_seq(seq_c))
-print(ge.check())
-print("pge2.validate:", ge.validate())
+psq = pulseg.fromSeq(seq_c)
+print(psq)
+print(pge2.check(psq, sys_ge))
+print("pge2.validate:", pge2.validate(psq, sys_ge))
 cpmg_timing(seq_c)
 
 # %% [markdown]
