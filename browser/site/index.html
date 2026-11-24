@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><title>pge2 bridge test</title>
+<pre id="log"></pre>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
+<script src="octave/bridge.js"></script>
+<script>
+const log = (s) => { document.getElementById('log').textContent += s + '\n'; console.log(s); };
+(async () => {
+  try {
+    let t = performance.now();
+    const py = await loadPyodide();
+    await py.loadPackage(['micropip', 'numpy', 'scipy', 'matplotlib']);
+    log(`[pyodide + numpy/scipy/matplotlib ${((performance.now()-t)/1000).toFixed(1)} s]`);
+    t = performance.now();
+    const mp = py.pyimport('micropip');
+    await mp.install(new URL('pypulseq-1.5.0.post1-py3-none-any.whl', location.href).href);
+    log(`[pypulseq ${((performance.now()-t)/1000).toFixed(1)} s]`);
+    for (const f of ['gre2d.py', 'pge_browser.py'])
+      py.FS.writeFile('/home/pyodide/' + f, await (await fetch(f)).text());
+    const r = await py.runPythonAsync(`
+import sys, time; sys.path.insert(0, '/home/pyodide')
+import importlib, gre2d, pge_browser
+t = time.time(); seq = gre2d.gre2d(); t_seq = time.time() - t
+ge = await pge_browser.GE.start()
+out = [f"[build gre2d in pypulseq {t_seq:.1f} s]", f"[octave load {ge._oc.loadSeconds:.1f} s]"]
+rep = await ge.from_seq(seq); out.append(f"[fromSeq {ge.last_seconds:.1f} s]\\n{rep}")
+p = await ge.check(); out.append(f"[check {ge.last_seconds:.1f} s] {p}")
+ok = await ge.validate(); out.append(f"[validate {ge.last_seconds:.1f} s] ok={ok}")
+"\\n".join(out)
+`);
+    log(r);
+    log('DONE');
+  } catch (e) { log('FAILED ' + e); }
+})();
+</script>

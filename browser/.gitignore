@@ -1,0 +1,9 @@
+# Build products: fetched or generated, not versioned
+site/octave/octave-cli.js
+site/octave/octave-cli.wasm
+site/octave/*.pack
+site/octave/share.json
+site/octave/toolboxes.json
+site/*.whl
+site/gre2d.py
+oct-env/
