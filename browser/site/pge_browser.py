@@ -39,7 +39,19 @@ class GE:
         self.scanner = {**DEFAULT_SCANNER, **(scanner or {})}
 
     @classmethod
-    async def start(cls, base="octave/", scanner=None):
+    async def start(cls, base=None, scanner=None):
+        """Load Octave. ``base`` is the URL of the folder with the Octave files;
+        by default ``octave/`` at the root of the site (also from inside a
+        JupyterLite kernel, whose worker script lives under ``extensions/``)."""
+        if base is None:
+            here = str(js.location.href)
+            root = here.split("/extensions/")[0] + "/" if "/extensions/" in here else here.rsplit("/", 1)[0] + "/"
+            base = root + "octave/"
+        if not hasattr(js, "OctaveBridge"):
+            from pyodide.code import run_js
+            from pyodide.http import pyfetch
+
+            run_js(await (await pyfetch(base + "bridge.js")).string())
         return cls(await js.OctaveBridge.load(base), scanner)
 
     async def _run(self, body, files=None):

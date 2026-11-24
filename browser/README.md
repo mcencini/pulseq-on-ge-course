@@ -13,9 +13,15 @@ await ge.check()
 await ge.validate()
 ```
 
-Status: works in headless Chromium on the reference gre2d (fromSeq 4.5 s,
-check 5.9 s, validate 6.5 s; results identical to desktop Octave). Not yet
-integrated in JupyterLite; not tested in Firefox or Safari.
+Status, on the reference gre2d in headless Chromium:
+
+- plain page: fromSeq 4.5 s, check 5.9 s, validate 6.5 s;
+- JupyterLite (Pyodide 314 kernel): fromSeq 5.3 s, check 7.6 s, validate 6.7 s,
+  Octave workers started from the kernel's worker;
+- results identical to desktop Octave;
+- `pyodide.ffi.run_sync` works (JSPI), so the calls can be made without `await`.
+
+Not tested in Firefox or Safari.
 
 ## How it works
 
@@ -53,3 +59,20 @@ node tools/drive.js http://localhost:8765/index.html
 
 `tools/run_node.js` and `tools/test_chain.m` run the same chain under Node,
 without a browser.
+
+## JupyterLite
+
+```bash
+pip install jupyterlite-core jupyterlite-pyodide-kernel jupyter-server
+mkdir -p lite/files lite/pypi
+cp site/pge_browser.py ../pgecourse/sequences/gre2d.py lite/files/
+pip download --no-deps pypulseq==1.5.0.post1 comm -d lite/pypi   # wheels served by the site itself
+(cd lite && jupyter lite build --output-dir dist)
+cp -r site/octave lite/dist/octave
+(cd lite/dist && python -m http.server 8766) &
+node tools/drive_lite.js http://localhost:8766            # runs the chain in the JupyterLite console
+CELLS=tools/cells_sync.json node tools/drive_lite.js http://localhost:8766   # same, without await
+```
+
+`comm` is needed by the kernel and is not in the Pyodide distribution; bundling
+it (and pypulseq) means the site does not need PyPI at run time.

@@ -1,0 +1,1 @@
+["%pip install pypulseq", "import gre2d, pge_browser\nfrom pyodide.ffi import run_sync, can_run_sync\nprint('can_run_sync', can_run_sync())\nge = run_sync(pge_browser.GE.start()); seq = gre2d.gre2d()\nprint(run_sync(ge.from_seq(seq)))", "print('VALIDATE', run_sync(ge.check()))"]
