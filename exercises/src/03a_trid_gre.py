@@ -1,5 +1,5 @@
 # %% [markdown]
-# # 03 · Risk #3: where the TRID labels go
+# # 03a · Risk #3: where the TRID labels go (2D GRE)
 #
 # Segment boundaries come only from `TRID` labels. A segment runs from a block
 # carrying a TRID up to, not including, the next TRID. Two rules follow:
@@ -170,5 +170,6 @@ print("pge2.validate:", ge.validate())
 #   *kind* of TR: dummy, calibration, imaging, navigator...
 # - Within a TRID, never add or remove a block or an event. Vary amplitudes,
 #   phases and the length of pure delays instead.
-# - Coming next, with the same rules: inversion-prepared 3D sequences
-#   (MPRAGE) and multi-slice sequences with a pure delay segment.
+# - Next, the same rules on longer sequences: an inversion-prepared 3D
+#   sequence (03b, MPRAGE) and a multislice sequence with a pure delay
+#   segment (03c).

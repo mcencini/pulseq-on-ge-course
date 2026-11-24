@@ -40,3 +40,21 @@ def test_sequence_without_trid_is_refused_before_pulseg(ge):
     seq.add_block(pp.make_delay(1e-3))
     with pytest.raises(pgecourse.PGE2Error, match="no TRID"):
         ge.from_seq(seq)
+
+
+def test_segment_instances_with_different_block_counts_are_refused(ge):
+    from pgecourse.sequences.multislice import multislice_gre
+
+    seq = multislice_gre(lambda kind, s: 1 if kind == "slice" else None, n=4)
+    with pytest.raises(pgecourse.PGE2Error, match="different numbers of blocks"):
+        ge.from_seq(seq)
+
+
+def test_mprage_placements_give_expected_segment_lengths(ge):
+    from pgecourse.sequences.mprage import mprage
+
+    lengths = {}
+    for name in ("per_shot", "two", "three"):
+        report = ge.from_seq(mprage(name, matrix=(32, 16, 4)))
+        lengths[name] = [len(s.layout) for s in report.segments]
+    assert lengths == {"per_shot": [68], "two": [4, 4], "three": [1, 3, 4]}

@@ -276,6 +276,7 @@ class GE:
         trids = _trid_instances(seq)
         if not trids:
             raise PGE2Error("no TRID label in the sequence: pulseg needs one on the first block of every segment")
+        _check_instance_lengths(seq)
         self._seq_file = self._tmp / "course.seq"
         seq.write(str(self._seq_file))
         messages = self._eval(f"psq = pulseg.fromSeq('{self._seq_file}');")
@@ -375,6 +376,39 @@ def _trid_instances(seq) -> dict[int, int]:
             if lab.label == "TRID":
                 counts[int(lab.value)] = counts.get(int(lab.value), 0) + 1
     return counts
+
+
+def _check_instance_lengths(seq) -> None:
+    """Refuse segments whose instances have different numbers of blocks.
+
+    pulseg takes a segment's length from its first instance and does not
+    check the others; in Octave a longer instance stops it with an unrelated
+    error. Report it here instead.
+    """
+    first: dict[int, tuple[int, int]] = {}  # TRID -> (length, start block)
+    trid, start, length = None, None, 0
+
+    def close():
+        if trid is None:
+            return
+        if trid not in first:
+            first[trid] = (length, start)
+        elif first[trid][0] != length:
+            raise PGE2Error(
+                f"segment instances of TRID {trid} have different numbers of blocks: "
+                f"{first[trid][0]} in the first instance (block {first[trid][1]}), "
+                f"{length} in the instance starting at block {start}. Every instance of a "
+                "segment must have the same blocks; give the extra blocks their own TRID."
+            )
+
+    for n in seq.block_events:
+        labels = seq.get_block(n).label or {}
+        new = [int(lab.value) for lab in labels.values() if lab.label == "TRID"]
+        if new:
+            close()
+            trid, start, length = new[0], n, 0
+        length += 1
+    close()
 
 
 def _merge_warnings(lines: list[str]) -> list[str]:

@@ -13,7 +13,9 @@ pge2 design rule, shows what the checks report, and asks you to fix it.
 | [00_gre2d_reference](exercises/00_gre2d_reference.ipynb) | the GE-friendly gre2d and the check chain: `pulseg.fromSeq`, `pge2.check`, `pge2.validate`, `pge2.serialize` |
 | [01_raster_time](exercises/01_raster_time.ipynb) | risk #1: pypulseq's default rasters are not GE's |
 | [02_events_in_loop](exercises/02_events_in_loop.ipynb) | risk #2: creating gradients inside the scan loop |
-| [03_trid_placement](exercises/03_trid_placement.ipynb) | risk #3: where TRID labels go (segment consistency and segment length) |
+| [03a_trid_gre](exercises/03a_trid_gre.ipynb) | risk #3: where TRID labels go (segment consistency and segment length) |
+| [03b_trid_mprage](exercises/03b_trid_mprage.ipynb) | risk #3 in an MPRAGE: one segment per shot vs one per kind of TR |
+| [03c_trid_multislice](exercises/03c_trid_multislice.ipynb) | risk #3 in a multislice sequence: a pure delay segment to fill the TR |
 
 The rules themselves are in the
 [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).
