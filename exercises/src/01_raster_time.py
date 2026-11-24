@@ -18,9 +18,6 @@
 # %%
 #INCLUDE _setup.py
 
-# %%
-from pgecourse.sequences import gre2d
-
 # %% [markdown]
 # ## The trap: pypulseq's defaults are not GE's
 #
@@ -42,10 +39,61 @@ for name in ("grad_raster_time", "block_duration_raster", "rf_raster_time", "adc
     print(f"{name:>22} = {getattr(system, name) * 1e6:g} us")
 
 # %% [markdown]
-# Build the gre2d of notebook 00 with these limits (`gre2d` is the same
-# function, packaged so that this notebook can focus on the system limits).
-# Pulseq's own timing check is happy, because every time is on *these*
-# rasters:
+# The gre2d of notebook 00, written as a function of the system limits and
+# the dwell time, so that we can build it with different `pp.Opts`:
+
+# %%
+def gre2d(system, dwell=20e-6, fov=240e-3, n=128, slice_thickness=5e-3, n_dummy=20, pislquant=10):
+    rf, gz, _ = pp.make_sinc_pulse(
+        flip_angle=np.deg2rad(6),
+        duration=3e-3,
+        slice_thickness=slice_thickness,
+        apodization=0.42,
+        time_bw_product=4,
+        system=system,
+        return_gz=True,
+        use="excitation",
+    )
+    gz_reph = pp.make_trapezoid("z", area=-gz.area / 2, duration=1e-3, system=system)
+    delta_k = 1 / fov
+    gx = pp.make_trapezoid("x", flat_area=n * delta_k, flat_time=n * dwell, system=system)
+    adc = pp.make_adc(n, duration=gx.flat_time, delay=gx.rise_time, system=system)
+    gx_pre = pp.make_trapezoid("x", area=-gx.area / 2, duration=1e-3, system=system)
+    pe_areas = (np.arange(n) - n / 2) * delta_k
+    gy_pre = pp.make_trapezoid("y", area=np.max(np.abs(pe_areas)), duration=1e-3, system=system)
+    pe_scales = pe_areas / gy_pre.area
+    gx_spoil = pp.make_trapezoid("x", area=2 * n * delta_k, system=system)
+    gz_spoil = pp.make_trapezoid("z", area=4 / slice_thickness, system=system)
+
+    TRID = [pp.make_label(type="SET", label="TRID", value=v) for v in (1, 2, 3)]
+
+    seq = pp.Sequence(system)
+    rf_phase = rf_increment = 0.0
+    for iy in range(-n_dummy - pislquant, n):
+        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+        rf_increment = (rf_increment + 117) % 360
+        rf_phase = (rf_phase + rf_increment) % 360
+        pe = pe_scales[iy] if iy >= 0 else 0.0
+
+        if iy < -pislquant:
+            seq.add_block(rf, gz, TRID[0])  # dummy
+        elif iy < 0:
+            seq.add_block(rf, gz, TRID[1])  # receive gain
+        else:
+            seq.add_block(rf, gz, TRID[2])  # acquire
+        seq.add_block(gx_pre, pp.scale_grad(gy_pre, pe), gz_reph)
+        if iy < -pislquant:
+            seq.add_block(gx)
+        else:
+            seq.add_block(gx, adc)
+        seq.add_block(gx_spoil, pp.scale_grad(gy_pre, -pe), gz_spoil)
+        seq.add_block(pp.make_delay(5e-3))
+    return seq
+
+
+# %% [markdown]
+# Build it with the default rasters. Pulseq's own timing check is happy,
+# because every time is on *these* rasters:
 
 # %%
 seq = gre2d(system)

@@ -17,19 +17,58 @@
 #INCLUDE _setup.py
 
 # %% [markdown]
-# `mprage` builds the sequence (reduced to 64 × 64 × 16 so that the checks
-# run quickly). It takes a function `choose_trid(kind)` that returns the TRID
-# for each kind of block, or None for no label. The kinds, in the order they
-# are played in a shot, are:
-#
-# | kind | block |
-# |---|---|
-# | `"inversion"` | inversion pulse (followed by a spoiler and the TI delay) |
-# | `"readout"` | first block of every readout TR |
-# | `"recovery"` | pure delay that completes the shot TR |
+# The sequence is reduced to 64 × 64 × 16 so that the checks run quickly.
+# Events first, as usual, and the delays that set TI and the shot TR.
 
 # %%
-from pgecourse.sequences.mprage import mprage
+system = pp.Opts(
+    max_grad=50 / np.sqrt(3),
+    grad_unit="mT/m",
+    max_slew=120 / np.sqrt(3),
+    slew_unit="T/m/s",
+    rf_dead_time=0,
+    rf_ringdown_time=0,
+    adc_dead_time=0,
+    rf_raster_time=2e-6,
+    adc_raster_time=2e-6,
+    grad_raster_time=4e-6,
+    block_duration_raster=4e-6,
+    B0=3.0,
+)
+
+fov = (256e-3, 256e-3, 192e-3)
+nx, ny, nz = 64, 64, 16
+dwell = 16e-6
+ti = 0.9        # inversion time (s), inversion to centre of the readout train
+shot_tr = 2.3   # (s)
+
+rf_inv = pp.make_block_pulse(np.pi, duration=1e-3, system=system, use="inversion")
+gz_inv_spoil = pp.make_trapezoid("z", area=8 / (fov[2] / nz), system=system)
+
+rf = pp.make_block_pulse(np.deg2rad(8), duration=100e-6, system=system, use="excitation")
+dk = 1 / np.asarray(fov)
+gx = pp.make_trapezoid("x", flat_area=nx * dk[0], flat_time=nx * dwell, system=system)
+adc = pp.make_adc(nx, duration=gx.flat_time, delay=gx.rise_time, system=system)
+gx_pre = pp.make_trapezoid("x", area=-gx.area / 2, duration=1e-3, system=system)
+gx_spoil = pp.make_trapezoid("x", area=2 * nx * dk[0], system=system)
+
+ky = (np.arange(ny) - ny / 2) * dk[1]
+kz = (np.arange(nz) - nz / 2) * dk[2]
+gy_pe = pp.make_trapezoid("y", area=np.max(np.abs(ky)), duration=1e-3, system=system)
+gz_pe = pp.make_trapezoid("z", area=np.max(np.abs(kz)), duration=1e-3, system=system)
+
+readout_tr = (
+    pp.calc_duration(rf)
+    + pp.calc_duration(gx_pre, gy_pe, gz_pe)
+    + pp.calc_duration(gx)
+    + pp.calc_duration(gx_spoil, gy_pe, gz_pe)
+)
+inv_time = pp.calc_duration(rf_inv) + pp.calc_duration(gz_inv_spoil)
+grid = system.block_duration_raster
+ti_delay = np.round((ti - inv_time - ny * readout_tr / 2) / grid) * grid
+rec_delay = np.round((shot_tr - inv_time - ti_delay - ny * readout_tr) / grid) * grid
+
+TRID = [pp.make_label(type="SET", label="TRID", value=v) for v in (1, 2, 3)]
 
 # %% [markdown]
 # ## Case A: one TRID per shot
@@ -37,8 +76,24 @@ from pgecourse.sequences.mprage import mprage
 # A TRID on the inversion only:
 
 # %%
-report_a = ge.from_seq(mprage(lambda kind: 1 if kind == "inversion" else None))
-print(report_a)
+seq_a = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iz in range(nz):
+    seq_a.add_block(rf_inv, TRID[0])
+    seq_a.add_block(gz_inv_spoil)
+    seq_a.add_block(pp.make_delay(ti_delay))
+    for iy in range(ny):
+        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+        rf_increment = (rf_increment + 117) % 360
+        rf_phase = (rf_phase + rf_increment) % 360
+        sy, sz = ky[iy] / gy_pe.area, kz[iz] / gz_pe.area
+        seq_a.add_block(rf)
+        seq_a.add_block(gx_pre, pp.scale_grad(gy_pe, sy), pp.scale_grad(gz_pe, sz))
+        seq_a.add_block(gx, adc)
+        seq_a.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
+    seq_a.add_block(pp.make_delay(rec_delay))
+
+print(ge.from_seq(seq_a))
 print(ge.check())
 print("pge2.validate:", ge.validate())
 
@@ -56,8 +111,25 @@ print("pge2.validate:", ge.validate())
 # ## Case B: preparation and readout TR, recovery delay unlabelled
 
 # %%
+seq_b = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iz in range(nz):
+    seq_b.add_block(rf_inv, TRID[0])
+    seq_b.add_block(gz_inv_spoil)
+    seq_b.add_block(pp.make_delay(ti_delay))
+    for iy in range(ny):
+        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+        rf_increment = (rf_increment + 117) % 360
+        rf_phase = (rf_phase + rf_increment) % 360
+        sy, sz = ky[iy] / gy_pe.area, kz[iz] / gz_pe.area
+        seq_b.add_block(rf, TRID[1])
+        seq_b.add_block(gx_pre, pp.scale_grad(gy_pe, sy), pp.scale_grad(gz_pe, sz))
+        seq_b.add_block(gx, adc)
+        seq_b.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
+    seq_b.add_block(pp.make_delay(rec_delay))
+
 try:
-    ge.from_seq(mprage(lambda kind: {"inversion": 1, "readout": 2}.get(kind)))
+    ge.from_seq(seq_b)
 except pgecourse.PGE2Error as err:
     print("from_seq:", err)
 
@@ -69,29 +141,53 @@ except pgecourse.PGE2Error as err:
 # %% [markdown]
 # ## Your turn
 #
-# Write a `choose_trid` that gives three segments: the inversion with its
+# Add the labels so that there are three segments: the inversion with its
 # TI delay, the readout TR, and the recovery delay. Check the number of
 # blocks per segment in the report, and that `pge2.check` and
 # `pge2.validate` pass.
 
 # %% tags=["raises-exception"]
-def choose_trid(kind):
-    ...  # TODO
+seq = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iz in range(nz):
+    seq.add_block(rf_inv)  # TODO
+    seq.add_block(gz_inv_spoil)
+    seq.add_block(pp.make_delay(ti_delay))
+    for iy in range(ny):
+        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+        rf_increment = (rf_increment + 117) % 360
+        rf_phase = (rf_phase + rf_increment) % 360
+        sy, sz = ky[iy] / gy_pe.area, kz[iz] / gz_pe.area
+        seq.add_block(rf)  # TODO
+        seq.add_block(gx_pre, pp.scale_grad(gy_pe, sy), pp.scale_grad(gz_pe, sz))
+        seq.add_block(gx, adc)
+        seq.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
+    seq.add_block(pp.make_delay(rec_delay))  # TODO
 
-
-report = ge.from_seq(mprage(choose_trid))
-print(report)
+print(ge.from_seq(seq))
 print(ge.check())
 print("pge2.validate:", ge.validate())
 
 # %% cellView="form"
 # @title Solution (double-click to show the code)
-def choose_trid(kind):
-    return {"inversion": 1, "readout": 2, "recovery": 3}[kind]
+seq = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iz in range(nz):
+    seq.add_block(rf_inv, TRID[0])
+    seq.add_block(gz_inv_spoil)
+    seq.add_block(pp.make_delay(ti_delay))
+    for iy in range(ny):
+        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+        rf_increment = (rf_increment + 117) % 360
+        rf_phase = (rf_phase + rf_increment) % 360
+        sy, sz = ky[iy] / gy_pe.area, kz[iz] / gz_pe.area
+        seq.add_block(rf, TRID[1])
+        seq.add_block(gx_pre, pp.scale_grad(gy_pe, sy), pp.scale_grad(gz_pe, sz))
+        seq.add_block(gx, adc)
+        seq.add_block(gx_spoil, pp.scale_grad(gy_pe, -sy), pp.scale_grad(gz_pe, -sz))
+    seq.add_block(pp.make_delay(rec_delay), TRID[2])
 
-
-report = ge.from_seq(mprage(choose_trid))
-print(report)
+print(ge.from_seq(seq))
 print(ge.check())
 print("pge2.validate:", ge.validate())
 

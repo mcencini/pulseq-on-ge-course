@@ -12,7 +12,20 @@
 #INCLUDE _setup.py
 
 # %%
-from pgecourse.sequences import GE_SYSTEM as system
+system = pp.Opts(
+    max_grad=50 / np.sqrt(3),
+    grad_unit="mT/m",
+    max_slew=120 / np.sqrt(3),
+    slew_unit="T/m/s",
+    rf_dead_time=0,
+    rf_ringdown_time=0,
+    adc_dead_time=0,
+    rf_raster_time=2e-6,
+    adc_raster_time=2e-6,
+    grad_raster_time=4e-6,
+    block_duration_raster=4e-6,
+    B0=3.0,
+)
 
 # %% [markdown]
 # ## The naive gre2d

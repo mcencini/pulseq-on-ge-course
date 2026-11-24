@@ -16,12 +16,23 @@
 #INCLUDE _setup.py
 
 # %%
-from pgecourse.sequences import GE_SYSTEM as system
+system = pp.Opts(
+    max_grad=50 / np.sqrt(3),
+    grad_unit="mT/m",
+    max_slew=120 / np.sqrt(3),
+    slew_unit="T/m/s",
+    rf_dead_time=0,
+    rf_ringdown_time=0,
+    adc_dead_time=0,
+    rf_raster_time=2e-6,
+    adc_raster_time=2e-6,
+    grad_raster_time=4e-6,
+    block_duration_raster=4e-6,
+    B0=3.0,
+)
 
 # %% [markdown]
-# Events as in notebook 00. `gre2d_loop` builds the scan loop and takes a
-# function that chooses the TRID of each TR, so that only the labelling
-# changes between the cases below.
+# Events as in notebook 00, and the three TRID labels used below.
 
 # %%
 fov = 240e-3
@@ -35,7 +46,6 @@ pislquant = 10
 rf, gz, _ = pp.make_sinc_pulse(
     flip_angle=np.deg2rad(6),
     duration=3e-3,
-    delay=system.rf_dead_time,
     slice_thickness=slice_thickness,
     apodization=0.42,
     time_bw_product=4,
@@ -54,34 +64,7 @@ pe_scales = pe_areas / gy_pre.area
 gx_spoil = pp.make_trapezoid("x", area=2 * n * delta_k, system=system)
 gz_spoil = pp.make_trapezoid("z", area=4 / slice_thickness, system=system)
 
-
-def trid_label(value):
-    return pp.make_label(type="SET", label="TRID", value=value)
-
-
-def gre2d_loop(choose_trid):
-    """choose_trid(iy, segment) returns a TRID value, or None for no label."""
-    seq = pp.Sequence(system)
-    rf_phase = rf_increment = 0.0
-    for iy in range(-n_dummy - pislquant, n):
-        segment = "dummy" if iy < -pislquant else "receive_gain" if iy < 0 else "acquire"
-        rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
-        rf_increment = (rf_increment + 117) % 360
-        rf_phase = (rf_phase + rf_increment) % 360
-        pe = pe_scales[iy] if segment == "acquire" else 0.0
-
-        trid = choose_trid(iy, segment)
-        labels = [trid_label(trid)] if trid is not None else []
-        seq.add_block(rf, gz, *labels)
-        seq.add_block(gx_pre, pp.scale_grad(gy_pre, pe), gz_reph)
-        if segment == "dummy":
-            seq.add_block(gx)
-        else:
-            seq.add_block(gx, adc)
-        seq.add_block(gx_spoil, pp.scale_grad(gy_pre, -pe), gz_spoil)
-        seq.add_block(pp.make_delay(tr_delay))
-    return seq
-
+TRID = [pp.make_label(type="SET", label="TRID", value=v) for v in (1, 2, 3)]
 
 # %% [markdown]
 # ## Case A: dummy TRs share the imaging TRID
@@ -90,7 +73,23 @@ def gre2d_loop(choose_trid):
 # the others do.
 
 # %%
-seq_a = gre2d_loop(lambda iy, segment: 1)
+seq_a = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iy in range(-n_dummy - pislquant, n):
+    rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+    rf_increment = (rf_increment + 117) % 360
+    rf_phase = (rf_phase + rf_increment) % 360
+    pe = pe_scales[iy] if iy >= 0 else 0.0
+
+    seq_a.add_block(rf, gz, TRID[0])  # same TRID for every TR
+    seq_a.add_block(gx_pre, pp.scale_grad(gy_pre, pe), gz_reph)
+    if iy < -pislquant:
+        seq_a.add_block(gx)  # dummy TR: no ADC
+    else:
+        seq_a.add_block(gx, adc)
+    seq_a.add_block(gx_spoil, pp.scale_grad(gy_pre, -pe), gz_spoil)
+    seq_a.add_block(pp.make_delay(tr_delay))
+
 try:
     ge.from_seq(seq_a)
 except pgecourse.PGE2Error as err:
@@ -113,9 +112,27 @@ except pgecourse.PGE2Error as err:
 # Label only the very first block:
 
 # %%
-seq_b = gre2d_loop(lambda iy, segment: 1 if iy == -n_dummy - pislquant else None)
-report_b = ge.from_seq(seq_b)
-print(report_b)
+seq_b = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iy in range(-n_dummy - pislquant, n):
+    rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+    rf_increment = (rf_increment + 117) % 360
+    rf_phase = (rf_phase + rf_increment) % 360
+    pe = pe_scales[iy] if iy >= 0 else 0.0
+
+    if iy == -n_dummy - pislquant:
+        seq_b.add_block(rf, gz, TRID[0])  # first TR only
+    else:
+        seq_b.add_block(rf, gz)
+    seq_b.add_block(gx_pre, pp.scale_grad(gy_pre, pe), gz_reph)
+    if iy < -pislquant:
+        seq_b.add_block(gx)
+    else:
+        seq_b.add_block(gx, adc)
+    seq_b.add_block(gx_spoil, pp.scale_grad(gy_pre, -pe), gz_spoil)
+    seq_b.add_block(pp.make_delay(tr_delay))
+
+print(ge.from_seq(seq_b))
 print(ge.check())
 print("pge2.validate:", ge.validate())
 
@@ -133,33 +150,61 @@ print("pge2.validate:", ge.validate())
 # %% [markdown]
 # ## Your turn
 #
-# Write a `choose_trid` that gives three segments, `dummy`, `receive_gain`
+# Label the TRs so that there are three segments, `dummy`, `receive_gain`
 # and `acquire`, each one TR long. Check that:
 #
 # - `pulseg.fromSeq` reports 3 segments with 20, 10 and 128 instances;
 # - `pge2.check` and `pge2.validate` pass.
 
 # %% tags=["raises-exception"]
-def choose_trid(iy, segment):
-    ...  # TODO
+seq = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iy in range(-n_dummy - pislquant, n):
+    rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+    rf_increment = (rf_increment + 117) % 360
+    rf_phase = (rf_phase + rf_increment) % 360
+    pe = pe_scales[iy] if iy >= 0 else 0.0
 
+    trid = ...  # TODO: TRID[0], TRID[1] or TRID[2], depending on iy
+    seq.add_block(rf, gz, trid)
+    seq.add_block(gx_pre, pp.scale_grad(gy_pre, pe), gz_reph)
+    if iy < -pislquant:
+        seq.add_block(gx)
+    else:
+        seq.add_block(gx, adc)
+    seq.add_block(gx_spoil, pp.scale_grad(gy_pre, -pe), gz_spoil)
+    seq.add_block(pp.make_delay(tr_delay))
 
-report = ge.from_seq(gre2d_loop(choose_trid))
-print(report)
+print(ge.from_seq(seq))
 print(ge.check())
 print("pge2.validate:", ge.validate())
 
 # %% cellView="form"
 # @title Solution (double-click to show the code)
-TRID = {"dummy": 1, "receive_gain": 2, "acquire": 3}
+seq = pp.Sequence(system)
+rf_phase = rf_increment = 0.0
+for iy in range(-n_dummy - pislquant, n):
+    rf.phase_offset = adc.phase_offset = np.deg2rad(rf_phase)
+    rf_increment = (rf_increment + 117) % 360
+    rf_phase = (rf_phase + rf_increment) % 360
+    pe = pe_scales[iy] if iy >= 0 else 0.0
 
+    if iy < -pislquant:
+        trid = TRID[0]  # dummy
+    elif iy < 0:
+        trid = TRID[1]  # receive gain
+    else:
+        trid = TRID[2]  # acquire
+    seq.add_block(rf, gz, trid)
+    seq.add_block(gx_pre, pp.scale_grad(gy_pre, pe), gz_reph)
+    if iy < -pislquant:
+        seq.add_block(gx)
+    else:
+        seq.add_block(gx, adc)
+    seq.add_block(gx_spoil, pp.scale_grad(gy_pre, -pe), gz_spoil)
+    seq.add_block(pp.make_delay(tr_delay))
 
-def choose_trid(iy, segment):
-    return TRID[segment]
-
-
-report = ge.from_seq(gre2d_loop(choose_trid))
-print(report)
+print(ge.from_seq(seq))
 print(ge.check())
 print("pge2.validate:", ge.validate())
 
