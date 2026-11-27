@@ -19,6 +19,12 @@ pge2 design rule, shows what the checks report, and asks you to fix it.
 | [04_fse_timing](exercises/04_fse_timing.ipynb) | timing: an FSE echo train in one segment, packed gradients |
 | [05_epi_timing](exercises/05_epi_timing.ipynb) | timing: an EPI train in one segment, blips in the readout ramps |
 
+[`examples/`](examples/README.md) holds each notebook's broken and fixed
+sequence as files, `before.seq` and `after.seq`, with the `.pge` of each that
+passes `pge2.check`, to play on a scanner or a simulator; its README says where
+in the check chain each one stops. `python -m pgecourse.examples examples`
+writes them again.
+
 The rules themselves are in the
 [pge2 sequence design rules](https://github.com/HarmonizedMRI/SequenceExamples-GE/blob/main/pge2/docs/pge2-sequence-design-rules.md).
 

@@ -5,3 +5,5 @@ __pycache__/
 *.pge
 .pytest_cache/
 build/
+!examples/*/*.seq
+!examples/*/*.pge
